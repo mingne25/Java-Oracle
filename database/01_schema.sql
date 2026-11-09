@@ -26,6 +26,7 @@ CREATE TABLE classrooms (
     name         VARCHAR2(120 CHAR) NOT NULL,
     faculty_id   NUMBER NOT NULL
         REFERENCES faculties ( id ),
+    teacher_id   NUMBER,
     max_students NUMBER(3) DEFAULT 50 NOT NULL,
     CONSTRAINT ck_class_max CHECK ( max_students = 50 )
 );
@@ -50,6 +51,9 @@ CREATE TABLE teachers (
     faculty_id NUMBER
         REFERENCES faculties ( id )
 );
+
+ALTER TABLE classrooms ADD CONSTRAINT fk_classroom_teacher
+    FOREIGN KEY ( teacher_id ) REFERENCES teachers ( id );
 
 CREATE TABLE students (
     id            NUMBER
@@ -113,4 +117,9 @@ CREATE INDEX ix_student_class ON
 CREATE INDEX ix_class_faculty ON
     classrooms (
         faculty_id
+    );
+
+CREATE INDEX ix_class_teacher ON
+    classrooms (
+        teacher_id
     );
