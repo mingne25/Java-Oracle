@@ -611,6 +611,7 @@ export default function Page() {
                     x.email,
                     x.classroom?.name,
                     x.faculty?.name,
+                    x.teacher?.fullName,
                 ].some((v) =>
                     String(v || "")
                         .toLocaleLowerCase("vi")
@@ -1531,12 +1532,24 @@ export default function Page() {
                                                 className="soft-input"
                                                 required
                                                 value={form[key] || ""}
-                                                onChange={(e) =>
-                                                    setForm({ ...form, [key]: Number(e.target.value), ...(tab === "classes" && key === "facultyId" ? { teacherId: undefined } : {}) })
-                                                }
+                                                onChange={(e) => {
+                                                    const value = Number(e.target.value);
+                                                    setForm({
+                                                        ...form,
+                                                        [key]: value,
+                                                        ...(tab === "classes" && key === "facultyId"
+                                                            ? { teacherId: undefined }
+                                                            : {}),
+                                                    });
+                                                }}
                                             >
                                                 <option value="">Chọn {label.toLowerCase()}</option>
-                                                {(type === "teachers" ? lookup[type].filter((x) => String(x.faculty?.id) === String(form.facultyId)) : lookup[type]).map((x) => (
+                                                {(type === "teachers"
+                                                    ? lookup[type].filter(
+                                                        (x) => String(x.faculty?.id) === String(form.facultyId),
+                                                    )
+                                                    : lookup[type]
+                                                ).map((x) => (
                                                     <option key={x.id} value={x.id}>
                                                         {x.code} · {shortName(x)}
                                                     </option>
