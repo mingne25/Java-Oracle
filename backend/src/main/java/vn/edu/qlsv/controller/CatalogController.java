@@ -277,7 +277,7 @@ public class CatalogController {
                 x.faculty = faculty;
                 x.teacher = teacher;
                 x.maxStudents = 50;
-                return classes.save(x);
+                return classSummary(classes.saveAndFlush(x));
             }
             case "subjects": {
                 Subject x = id == null ? new Subject() : required(subjects.findById(id));
