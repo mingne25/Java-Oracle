@@ -47,6 +47,16 @@ public class CatalogController {
     record StudentSummary(Long id, String code, String fullName, String classroomName, StudentStatus status) {
     }
 
+    record FacultySummary(Long id, String name) {
+    }
+
+    record TeacherSummary(Long id, String code, String fullName) {
+    }
+
+    record ClassroomSummary(Long id, String code, String name, FacultySummary faculty, TeacherSummary teacher,
+            Integer maxStudents) {
+    }
+
     private boolean isAdmin(Authentication auth) {
         return hasRole(auth, "ROLE_ADMIN");
     }
@@ -79,8 +89,25 @@ public class CatalogController {
         return new StudentSummary(s.id, s.code, s.fullName, s.classroom == null ? null : s.classroom.name, s.status);
     }
 
+    private ClassroomSummary classSummary(Classroom classroom) {
+        FacultySummary faculty = classroom.faculty == null
+                ? null
+                : new FacultySummary(classroom.faculty.id, classroom.faculty.name);
+        TeacherSummary teacher = classroom.teacher == null
+                ? null
+                : new TeacherSummary(classroom.teacher.id, classroom.teacher.code, classroom.teacher.fullName);
+        return new ClassroomSummary(classroom.id, classroom.code, classroom.name, faculty, teacher,
+                classroom.maxStudents);
+    }
+
     @GetMapping("/{type}")
     public Object list(@PathVariable String type, Authentication auth) {
+        if (type.equals("classes")) {
+            List<Classroom> visibleClasses = isTeacher(auth)
+                    ? classes.findByTeacher_Id(teacherId(auth))
+                    : classes.findAll();
+            return visibleClasses.stream().map(this::classSummary).toList();
+        }
         if (type.equals("students") && isTeacher(auth)) {
             Long teacherId = teacherId(auth);
             return students.findByClassroom_Teacher_Id(teacherId).stream().map(this::summary).toList();
@@ -92,6 +119,14 @@ public class CatalogController {
 
     @GetMapping("/{type}/{id}")
     public Object one(@PathVariable String type, @PathVariable Long id, Authentication auth) {
+        if (type.equals("classes") && isTeacher(auth)) {
+            Long teacherId = teacherId(auth);
+            Classroom classroom = classes.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            if (classroom.teacher == null || !classroom.teacher.id.equals(teacherId))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            return classSummary(classroom);
+        }
         if (type.equals("students") && isTeacher(auth)) {
             Long teacherId = teacherId(auth);
             Student s = students.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
