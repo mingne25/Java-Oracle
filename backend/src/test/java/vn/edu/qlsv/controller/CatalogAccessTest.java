@@ -44,7 +44,6 @@ class CatalogAccessTest {
     void teacherOnlyReceivesTeachersFromTheirFaculty() throws Exception {
         Faculty ownFaculty = faculty(12L);
         Teacher ownTeacher = teacher(1L, ownFaculty);
-        Teacher otherTeacher = teacher(2L, faculty(34L));
         UserAccount account = new UserAccount();
         account.username = "teacher01";
         account.teacher = teacher(10L, ownFaculty);
