@@ -24,20 +24,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CatalogController.class)
 @Import(SecurityConfig.class)
 class CatalogAccessTest {
-    @Autowired MockMvc mvc;
+    @Autowired
+    MockMvc mvc;
 
-    @MockBean CourseYearRepository years;
-    @MockBean FacultyRepository faculties;
-    @MockBean ClassroomRepository classes;
-    @MockBean SubjectRepository subjects;
-    @MockBean TeacherRepository teachers;
-    @MockBean StudentRepository students;
-    @MockBean UserAccountRepository users;
+    @MockBean
+    CourseYearRepository years;
+    @MockBean
+    FacultyRepository faculties;
+    @MockBean
+    ClassroomRepository classes;
+    @MockBean
+    SubjectRepository subjects;
+    @MockBean
+    TeacherRepository teachers;
+    @MockBean
+    StudentRepository students;
+    @MockBean
+    UserAccountRepository users;
 
     @Test
     void studentCannotReadTeacherCatalog() throws Exception {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/api/catalog/teachers").with(user("student01").roles("STUDENT")))
+                .get("/api/catalog/teachers").with(user("student01").roles("STUDENT")))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(teachers);
@@ -54,7 +62,7 @@ class CatalogAccessTest {
         when(teachers.findByFaculty_Id(12L)).thenReturn(List.of(ownTeacher));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/api/catalog/teachers").with(user("teacher01").roles("TEACHER")))
+                .get("/api/catalog/teachers").with(user("teacher01").roles("TEACHER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1]").doesNotExist());
@@ -70,7 +78,7 @@ class CatalogAccessTest {
                 teacher(2L, faculty(34L))));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/api/catalog/teachers").with(user("admin").roles("ADMIN")))
+                .get("/api/catalog/teachers").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2));
@@ -88,12 +96,12 @@ class CatalogAccessTest {
         when(students.findById(22L)).thenReturn(Optional.of(student(22L, 8L)));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/api/catalog/students").with(user("teacher01").roles("TEACHER")))
+                .get("/api/catalog/students").with(user("teacher01").roles("TEACHER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(21))
                 .andExpect(jsonPath("$[1]").doesNotExist());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/api/catalog/students/22").with(user("teacher01").roles("TEACHER")))
+                .get("/api/catalog/students/22").with(user("teacher01").roles("TEACHER")))
                 .andExpect(status().isNotFound());
 
         verify(students).findByClassroom_Teacher_Id(7L);
@@ -107,16 +115,16 @@ class CatalogAccessTest {
         when(classes.save(any(Classroom.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/api/catalog/classes")
-                        .with(user("admin").roles("ADMIN"))
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"C1\",\"name\":\"Class 1\",\"facultyId\":12,\"teacherId\":31}"))
+                .post("/api/catalog/classes")
+                .with(user("admin").roles("ADMIN"))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"C1\",\"name\":\"Class 1\",\"facultyId\":12,\"teacherId\":31}"))
                 .andExpect(status().isOk());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/api/catalog/classes")
-                        .with(user("admin").roles("ADMIN"))
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"C2\",\"name\":\"Class 2\",\"facultyId\":12,\"teacherId\":32}"))
+                .post("/api/catalog/classes")
+                .with(user("admin").roles("ADMIN"))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"C2\",\"name\":\"Class 2\",\"facultyId\":12,\"teacherId\":32}"))
                 .andExpect(status().isBadRequest());
 
         verify(classes, times(1)).save(argThat(classroom -> classroom.teacher.id.equals(31L)));
