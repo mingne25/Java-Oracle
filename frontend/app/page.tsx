@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Activity,
     ArrowDownRight,
@@ -397,6 +397,8 @@ export default function Page() {
         [loginError, setLoginError] = useState(""),
         [tab, setTab] = useState("dashboard"),
         [data, setData] = useState<Item[]>([]),
+        [listLoading, setListLoading] = useState(false),
+        [listError, setListError] = useState(""),
         [lookup, setLookup] = useState<Record<string, Item[]>>({}),
         [stats, setStats] = useState<Item>({}),
         [accounts, setAccounts] = useState<Item[]>([]),
@@ -410,7 +412,18 @@ export default function Page() {
         [sidebar, setSidebar] = useState(false),
         [busy, setBusy] = useState(false),
         [profile, setProfile] = useState<Item | null>(null);
+    const listLoadId = useRef(0);
     const load = useCallback(async (current: string, role: string) => {
+        const isList = Boolean(specs[current]);
+        const loadId = ++listLoadId.current;
+        if (isList) {
+            setListLoading(true);
+            setListError("");
+            setData([]);
+        } else {
+            setListError("");
+            setListLoading(false);
+        }
         setError("");
         try {
             const keys = ["years", "faculties", "classes", "students", "teachers"];
@@ -431,13 +444,13 @@ export default function Page() {
                 });
             if (specs[current]) {
                 const rows = await request("/api/catalog/" + current);
+                let visibleRows = rows;
                 if (current === "teachers" && role === "TEACHER") {
                     const ownProfile = await request("/api/teacher/profile");
                     const facultyId = ownProfile.faculty?.id;
-                    setData(rows.filter((teacher: Item) => teacher.faculty?.id === facultyId));
-                } else {
-                    setData(rows);
+                    visibleRows = rows.filter((teacher: Item) => teacher.faculty?.id === facultyId);
                 }
+                if (loadId === listLoadId.current) setData(visibleRows);
             } else if (current === "dashboard" && role === "ADMIN")
                 setStats(await request("/api/admin/stats"));
             else if (current === "accounts" && role === "ADMIN")
@@ -445,7 +458,13 @@ export default function Page() {
             else if (current === "profile")
                 setProfile(await request(`/api/${role.toLowerCase()}/profile`));
         } catch (e: any) {
-            setError(e.message);
+            if (isList) {
+                if (loadId === listLoadId.current) setListError(e.message);
+            } else {
+                setError(e.message);
+            }
+        } finally {
+            if (isList && loadId === listLoadId.current) setListLoading(false);
         }
     }, []);
     useEffect(() => {
@@ -488,12 +507,19 @@ export default function Page() {
         sessionStorage.removeItem("qlsv_auth");
         setUser(null);
         setData([]);
+        setListLoading(false);
+        setListError("");
+        listLoadId.current += 1;
         setProfile(null);
         setError("");
         setMessage("");
     }
     function navigate(t: string) {
         setTab(t);
+        setData([]);
+        setListLoading(false);
+        setListError("");
+        listLoadId.current += 1;
         setSidebar(false);
         setQuery("");
         setError("");
@@ -983,13 +1009,18 @@ export default function Page() {
                                     <h2 className="text-base font-bold">
                                         Danh sách {title.toLowerCase()}
                                     </h2>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        {tab === "teachers" && user.role === "TEACHER"
-                                            ? "Phạm vi khoa của bạn · "
-                                            : ""}
-                                        {filtered.length} kết quả{" "}
-                                        {query ? "phù hợp" : "trong hệ thống"}
+                                    <p className="mt-1 text-xs text-slate-500" aria-live="polite">
+                                        {listLoading
+                                            ? "Đang tải danh sách..."
+                                            : listError
+                                                ? "Không thể tải danh sách"
+                                                : (tab === "teachers" && user.role === "TEACHER" ? "Phạm vi khoa của bạn · " : "") + filtered.length + " kết quả " + (query ? "phù hợp" : "trong hệ thống")}
                                     </p>
+                                    {listError && (
+                                        <p role="alert" className="mt-2 text-xs text-rose-400">
+                                            Lỗi tải danh sách: {listError}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
                                     <div className="relative">
@@ -1008,9 +1039,10 @@ export default function Page() {
                                         aria-label="Làm mới"
                                         title="Làm mới dữ liệu"
                                         onClick={() => void load(tab, user.role)}
-                                        className="rounded-xl border border-emerald-900/10 bg-emerald-50 p-3 text-slate-500 hover:text-white"
+                                        disabled={listLoading}
+                                        className="rounded-xl border border-emerald-900/10 bg-emerald-50 p-3 text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <RefreshCw size={16} />
+                                        <RefreshCw size={16} className={listLoading ? "animate-spin" : ""} />
                                     </button>
                                 </div>
                             </div>
@@ -1083,7 +1115,7 @@ export default function Page() {
                                                 )}
                                             </tr>
                                         ))}
-                                        {filtered.length === 0 && (
+                                        {(listLoading || listError || filtered.length === 0) && (
                                             <tr>
                                                 <td
                                                     colSpan={
@@ -1098,8 +1130,22 @@ export default function Page() {
                                                     className="py-16 text-center"
                                                 >
                                                     <div className="flex flex-col items-center gap-3 text-slate-500">
-                                                        <Search size={28} />
-                                                        <span>Chưa có dữ liệu phù hợp</span>
+                                                        {listLoading ? (
+                                                            <>
+                                                                <RefreshCw size={28} className="animate-spin" />
+                                                                <span>Đang tải dữ liệu...</span>
+                                                            </>
+                                                        ) : listError ? (
+                                                            <>
+                                                                <AlertCircle size={28} className="text-rose-400" />
+                                                                <span>Không thể tải danh sách</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Search size={28} />
+                                                                <span>Chưa có dữ liệu phù hợp</span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1109,7 +1155,11 @@ export default function Page() {
                             </div>
                             <div className="flex items-center justify-between border-t border-white/[.07] px-6 py-4 text-xs text-slate-500">
                                 <span>
-                                    Hiển thị {filtered.length} / {data.length} bản ghi
+                                    {listLoading
+                                        ? "Đang tải..."
+                                        : listError
+                                            ? "Danh sách chưa tải được"
+                                            : "Hiển thị " + filtered.length + " / " + data.length + " bản ghi"}
                                 </span>
                                 <span>Dữ liệu trực tiếp từ Oracle</span>
                             </div>
