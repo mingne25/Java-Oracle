@@ -12,7 +12,8 @@ Dự án **mới**, dựa trên nghiệp vụ trong `phan_tich_nghiep_vu_quan_ly
 2. Nếu chưa có user QLSV, sửa mật khẩu trong `database/00_create_user.sql` rồi chạy một lần. Nếu user QLSV đã tồn tại, chỉ cấp quyền/quota còn thiếu.
 3. Tạo kết nối SQL Developer mới bằng user `QLSV` tới `FREEPDB1`.
 4. Chạy `database/01_schema.sql` **một lần** trong schema trống QLSV. Đừng chạy lại nếu các bảng đã có.
-5. Kiểm tra `SELECT TABLE_NAME FROM USER_TABLES;`.
+5. Với schema QLSV hiện có, chạy một lần `database/03_classroom_teacher_assignment.sql` để thêm phân công giảng viên cho lớp.
+6. Kiểm tra `SELECT TABLE_NAME FROM USER_TABLES;`.
 
 ## Backend (PowerShell)
 ```powershell
@@ -33,11 +34,11 @@ npm run dev
 Truy cập `http://localhost:3000`, đăng nhập Admin từ biến môi trường ở trên.
 
 ## Thứ tự nhập dữ liệu
-Khóa học → Khoa → Lớp → Môn học / Giảng viên → Sinh viên → Tạo tài khoản giảng viên và sinh viên.
+Khóa học → Khoa → Giảng viên → Lớp (chọn giảng viên cùng khoa) → Môn học / Sinh viên → Tạo tài khoản giảng viên và sinh viên.
 
 ## Quyền
-- `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; tạo tài khoản Teacher/Student; dashboard.
-- `TEACHER`: xem danh sách danh mục/sinh viên, xem hồ sơ cá nhân.
+- `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; phân công một giảng viên cùng khoa cho mỗi lớp; tạo tài khoản Teacher/Student; dashboard.
+- `TEACHER`: xem danh sách giảng viên trong khoa, chỉ xem học sinh thuộc các lớp được phân công, xem hồ sơ cá nhân; danh sách học sinh phân trang 25 bản ghi mỗi trang.
 - `STUDENT`: chỉ xem hồ sơ cá nhân; không truy cập API danh mục.
 - Không có đăng ký tài khoản công khai, không tạo thêm admin qua API.
 
@@ -50,6 +51,6 @@ Khóa học → Khoa → Lớp → Môn học / Giảng viên → Sinh viên →
 - `GET /api/teacher/profile` (Teacher), `GET /api/student/profile` (Student)
 
 ## Giới hạn phiên bản bàn giao
-Đây là **MVP có mã nguồn**, chưa phải sản phẩm triển khai công khai. HTTP Basic được lưu trong sessionStorage trình duyệt; chỉ dùng trên localhost để học tập, không triển khai internet như hiện tại. Cần nâng cấp lên session cookie HttpOnly + CSRF, kiểm soát quyền chi tiết theo khoa/lớp, pagination, xử lý ngoại lệ, transaction/locking chống đồng thời khi lớp gần đầy, audit log và automated tests trước khi sử dụng thật. API danh mục chỉ dành cho Admin và Giảng viên; Sinh viên chỉ được xem hồ sơ cá nhân.
+Đây là **MVP có mã nguồn**, chưa phải sản phẩm triển khai công khai. HTTP Basic được lưu trong sessionStorage trình duyệt; chỉ dùng trên localhost để học tập, không triển khai internet như hiện tại. Cần nâng cấp lên session cookie HttpOnly + CSRF, phân trang phía máy chủ, xử lý ngoại lệ, transaction/locking chống đồng thời khi lớp gần đầy, audit log và automated tests trước khi sử dụng thật. API danh mục chỉ dành cho Admin và Giảng viên; Sinh viên chỉ được xem hồ sơ cá nhân.
 
 Giới hạn 50 được kiểm tra ở tầng service trong luồng thông thường; chưa có cơ chế khóa cạnh tranh an toàn khi nhiều request đồng thời. Chưa có module điểm danh/lịch học/điểm số vì tài liệu gốc không yêu cầu. Chưa triển khai báo cáo nâng cao, tìm kiếm kết hợp và CSV.
