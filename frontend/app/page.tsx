@@ -828,19 +828,19 @@ export default function Page() {
                     </div>
                 </header>
                 <main className="mx-auto max-w-[1500px] px-5 pb-16 pt-8 sm:px-8">
-                    <div className="animate-rise mb-8 flex flex-wrap items-end justify-between gap-4">
+                    <div className={`animate-rise ${tab === "dashboard" ? "mb-5" : "mb-8"} flex flex-wrap items-end justify-between gap-4`}>
                         <div>
                             <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.19em] text-emerald-400">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> HỆ
                                 THỐNG QUẢN LÝ SINH VIÊN
                             </div>
-                            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                                {title}
-                                <span className="text-green-400">.</span>
+                            <h1 className="text-[27px] font-bold tracking-tight text-[#18352b] sm:text-[32px]">
+                                {tab === "dashboard" ? `Xin chào, ${user.username} 👋` : title}
+                                {tab !== "dashboard" && <span className="text-green-600">.</span>}
                             </h1>
                             <p className="mt-2 text-sm text-slate-500">
                                 {tab === "dashboard"
-                                    ? `Xin chào ${user.username}, đây là bức tranh tổng quan hôm nay.`
+                                    ? "Tổng quan nhanh về hoạt động của nhà trường."
                                     : tab === "profile"
                                         ? "Thông tin hồ sơ và tài khoản của bạn."
                                         : `Quản lý dữ liệu ${title.toLowerCase()} trên hệ thống.`}
