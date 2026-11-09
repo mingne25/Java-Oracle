@@ -102,6 +102,8 @@ const statusLabels: Record<string, string> = {
     DROPPED_OUT: "Thôi học",
     EXPELLED: "Buộc thôi học",
 };
+const genderLabels: Record<string, string> = { MALE: "Nam", FEMALE: "Nữ", OTHER: "Khác", Nam: "Nam", "Nữ": "Nữ", "Khác": "Khác" };
+const genderCode = (value: string) => ({ Nam: "MALE", "Nữ": "FEMALE", "Khác": "OTHER" }[value] || value);
 const roleLabels: Record<string, string> = {
     ADMIN: "Quản trị viên",
     TEACHER: "Giảng viên",
@@ -536,6 +538,7 @@ export default function Page() {
         const d = { ...x };
         for (const k of ["courseYear", "faculty", "classroom"])
             if (x[k]) d[k + "Id"] = x[k].id;
+        if (d.gender) d.gender = genderCode(d.gender);
         setForm(d);
         setModal(true);
     }
@@ -1223,7 +1226,7 @@ export default function Page() {
                     ["Mã định danh", profile.code],
                     ["Email", profile.email],
                     ["Số điện thoại", profile.phone],
-                    ["Giới tính", profile.gender],
+                    ["Giới tính", genderLabels[profile.gender] || profile.gender],
                     [
                         "Trạng thái",
                         statusLabels[profile.status] || profile.status,
@@ -1420,9 +1423,9 @@ export default function Page() {
                                                 }
                                             >
                                                 <option value="">Chọn giới tính</option>
-                                                <option value="Nam">Nam</option>
-                                                <option value="Nữ">Nữ</option>
-                                                <option value="Khác">Khác</option>
+                                                <option value="MALE">Nam</option>
+                                                <option value="FEMALE">Nữ</option>
+                                                <option value="OTHER">Khác</option>
                                             </select>
                                         ) : type && lookup[type] ? (
                                             <select
