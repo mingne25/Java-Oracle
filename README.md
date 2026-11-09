@@ -38,18 +38,18 @@ Khóa học → Khoa → Lớp → Môn học / Giảng viên → Sinh viên →
 ## Quyền
 - `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; tạo tài khoản Teacher/Student; dashboard.
 - `TEACHER`: xem danh sách danh mục/sinh viên, xem hồ sơ cá nhân.
-- `STUDENT`: xem danh mục và hồ sơ của chính mình.
+- `STUDENT`: chỉ xem hồ sơ cá nhân; không truy cập API danh mục.
 - Không có đăng ký tài khoản công khai, không tạo thêm admin qua API.
 
 ## API
 - `GET /api/health` (public)
 - `GET /api/me` (đăng nhập)
-- `GET /api/catalog/{years|faculties|classes|subjects|teachers|students}` (đăng nhập)
+- `GET /api/catalog/{years|faculties|classes|subjects|teachers|students}` (Admin/Giảng viên; Giảng viên bị giới hạn sinh viên và giảng viên theo khoa)
 - `POST/PUT/DELETE /api/catalog/{type}` (Admin)
 - `GET /api/admin/stats`, `POST /api/admin/users` (Admin)
 - `GET /api/teacher/profile` (Teacher), `GET /api/student/profile` (Student)
 
 ## Giới hạn phiên bản bàn giao
-Đây là **MVP có mã nguồn**, chưa phải sản phẩm triển khai công khai. HTTP Basic được lưu trong sessionStorage trình duyệt; chỉ dùng trên localhost để học tập, không triển khai internet như hiện tại. Cần nâng cấp lên session cookie HttpOnly + CSRF, kiểm soát quyền chi tiết theo khoa/lớp, pagination, xử lý ngoại lệ, transaction/locking chống đồng thời khi lớp gần đầy, audit log và automated tests trước khi sử dụng thật. Đặc biệt, API GET danh mục hiện cho phép sinh viên xem toàn bộ danh sách; nên thu hẹp theo nhu cầu bảo mật thực tế.
+Đây là **MVP có mã nguồn**, chưa phải sản phẩm triển khai công khai. HTTP Basic được lưu trong sessionStorage trình duyệt; chỉ dùng trên localhost để học tập, không triển khai internet như hiện tại. Cần nâng cấp lên session cookie HttpOnly + CSRF, kiểm soát quyền chi tiết theo khoa/lớp, pagination, xử lý ngoại lệ, transaction/locking chống đồng thời khi lớp gần đầy, audit log và automated tests trước khi sử dụng thật. API danh mục chỉ dành cho Admin và Giảng viên; Sinh viên chỉ được xem hồ sơ cá nhân.
 
 Giới hạn 50 được kiểm tra ở tầng service trong luồng thông thường; chưa có cơ chế khóa cạnh tranh an toàn khi nhiều request đồng thời. Chưa có module điểm danh/lịch học/điểm số vì tài liệu gốc không yêu cầu. Chưa triển khai báo cáo nâng cao, tìm kiếm kết hợp và CSV.
