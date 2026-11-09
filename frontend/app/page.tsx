@@ -670,8 +670,15 @@ export default function Page() {
             { label: "Khóa học", value: stats.years ?? "—", icon: CalendarDays },
         ];
     const dashboardActions = user?.role === "ADMIN"
-        ? ["students", "teachers", "classes", "faculties"]
+        ? ["students", "classes", "teachers", "subjects"]
         : ["students", "teachers", "profile"];
+    const classDistribution = Object.entries(
+        (lookup.students || []).reduce((counts: Record<string, number>, student: Item) => {
+            const className = student.classroom?.name || student.classroomName || "Chưa xếp lớp";
+            counts[className] = (counts[className] || 0) + 1;
+            return counts;
+        }, {}),
+    ).sort((a, b) => b[1] - a[1]).slice(0, 7);
     const visibleTabs =
         user?.role === "ADMIN"
             ? [
@@ -689,7 +696,7 @@ export default function Page() {
                 : ["profile"];
     const title =
         tab === "dashboard"
-            ? "Tổng quan hệ thống"
+            ? "Tổng quan"
             : tab === "accounts"
                 ? "Quản lý tài khoản"
                 : tab === "profile"
@@ -699,8 +706,8 @@ export default function Page() {
         return <Login onLogin={login} error={loginError} loading={loading} />;
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#f4faf6] text-slate-900">
-            <div className="orb left-[40%] top-[-300px] h-[550px] w-[550px] bg-emerald-900/70" />
-            <div className="orb bottom-[-320px] right-[-220px] h-[650px] w-[650px] bg-green-950/50" />
+            
+            
             {sidebar && (
                 <button
                     aria-label="Đóng menu"
@@ -710,17 +717,15 @@ export default function Page() {
             )}
             <aside
                 data-emerald-sidebar="true"
-                className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col border-r border-white/[.07] bg-white/95 px-4 py-6 backdrop-blur-xl transition-transform lg:translate-x-0 ${sidebar ? "translate-x-0" : "-translate-x-full"}`}
+                className={`fixed inset-y-0 left-0 z-40 flex w-[238px] flex-col border-r border-white/[.07] bg-white/95 px-4 py-6 backdrop-blur-xl transition-transform lg:translate-x-0 ${sidebar ? "translate-x-0" : "-translate-x-full"}`}
             >
                 <div className="mb-10 flex items-center justify-between px-3">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-600/25">
-                            <GraduationCap size={25} />
-                        </div>
+                        <div className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#138a64] text-lg font-extrabold text-white">C</div>
                         <div>
                             <p className="text-[22px] font-black tracking-tight">Campus</p>
                             <p className="text-[9px] font-bold tracking-[.24em] text-slate-500">
-                                CAMPUS SYSTEM
+                                QUẢN LÝ HỌC SINH
                             </p>
                         </div>
                     </div>
@@ -732,7 +737,7 @@ export default function Page() {
                     </button>
                 </div>
                 <div className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[.22em] text-slate-300">
-                    Không gian làm việc
+                    MENU CHÍNH
                 </div>
                 <nav className="flex-1 space-y-1 overflow-y-auto">
                     {visibleTabs.map((t) => {
@@ -780,23 +785,29 @@ export default function Page() {
                     Đăng xuất
                 </button>
             </aside>
-            <div className="relative min-h-screen lg:pl-[260px]">
+            <div className="relative min-h-screen lg:pl-[238px]">
                 <header className="sticky top-0 z-20 flex h-[76px] items-center justify-between border-b border-white/[.07] bg-[#0a1120]/85 px-5 backdrop-blur-xl sm:px-8">
                     <div className="flex items-center gap-4">
                         <button
                             aria-label="Mở menu"
                             onClick={() => setSidebar(true)}
-                            className="text-slate-700 lg:hidden"
+                            className="hidden"
                         >
                             <Menu size={24} />
                         </button>
-                        <div className="hidden text-xs text-slate-500 sm:block">
-                            Hệ thống <span className="mx-2 text-slate-700">/</span>{" "}
+                        <div className="text-xs text-slate-500">
+                            Hệ thống <span className="mx-2 text-slate-300">/</span>
                             <span className="font-semibold text-slate-700">{title}</span>
                         </div>
-                        <div className="text-sm font-bold sm:hidden">{title}</div>
                     </div>
                     <div className="flex items-center gap-3 sm:gap-5">
+                        <button
+                            onClick={() => navigate("students")}
+                            className="hidden w-[220px] items-center gap-2 rounded-[10px] border border-emerald-900/10 bg-white px-3 py-2 text-left text-xs text-slate-400 md:flex"
+                            aria-label="Tìm kiếm sinh viên"
+                        >
+                            <Search size={15} /> Tìm kiếm...
+                        </button>
                         <div className="hidden items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/5 px-3 py-1.5 text-[11px] text-emerald-300 md:flex">
                             <Wifi size={14} /> Oracle 26ai
                         </div>
@@ -817,24 +828,37 @@ export default function Page() {
                     </div>
                 </header>
                 <main className="mx-auto max-w-[1500px] px-5 pb-16 pt-8 sm:px-8">
-                    <div className="animate-rise mb-8 flex flex-wrap items-end justify-between gap-4">
+                    <div className={`animate-rise ${tab === "dashboard" ? "mb-5" : "mb-8"} flex flex-wrap items-end justify-between gap-4`}>
                         <div>
                             <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.19em] text-emerald-400">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> HỆ
                                 THỐNG QUẢN LÝ SINH VIÊN
                             </div>
-                            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                                {title}
-                                <span className="text-green-400">.</span>
+                            <h1 className="text-[27px] font-bold tracking-tight text-[#18352b] sm:text-[32px]">
+                                {tab === "dashboard" ? `Xin chào, ${user.username} 👋` : title}
+                                {tab !== "dashboard" && <span className="text-green-600">.</span>}
                             </h1>
                             <p className="mt-2 text-sm text-slate-500">
                                 {tab === "dashboard"
-                                    ? `Xin chào ${user.username}, đây là bức tranh tổng quan hôm nay.`
+                                    ? "Tổng quan nhanh về hoạt động của nhà trường."
                                     : tab === "profile"
                                         ? "Thông tin hồ sơ và tài khoản của bạn."
                                         : `Quản lý dữ liệu ${title.toLowerCase()} trên hệ thống.`}
                             </p>
                         </div>
+                        {tab === "dashboard" && user.role === "ADMIN" && (
+                            <button
+                                onClick={() => {
+                                    setForm({ status: "STUDYING" });
+                                    setEditing(null);
+                                    setTab("students");
+                                    setModal(true);
+                                }}
+                                className={`${btn} gradient-button text-white`}
+                            >
+                                <Plus size={17} /> Thêm sinh viên
+                            </button>
+                        )}
                         {specs[tab] && user.role === "ADMIN" && (
                             <button
                                 onClick={() => {
@@ -894,110 +918,146 @@ export default function Page() {
                         </div>
                     )}
                     {tab === "dashboard" && (
-                        <div className="space-y-6">
-                            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="space-y-5">
+                            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                 {dashboardCards.map(({ label, value, icon: Icon }) => (
-                                    <article key={label} className={`${panel} rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm`}>
+                                    <article key={label} className="rounded-[14px] border border-emerald-900/10 bg-white p-4 shadow-[0_8px_24px_rgba(22,66,49,.05)] sm:p-[17px]">
                                         <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium text-slate-600">{label}</p>
-                                            <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
-                                                <Icon size={20} />
+                                            <p className="text-xs font-medium text-slate-500">{label}</p>
+                                            <span className="grid h-[34px] w-[34px] place-items-center rounded-[10px] bg-[#eaf7f1] text-[#138a64]">
+                                                <Icon size={18} />
                                             </span>
                                         </div>
-                                        <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+                                        <p className="mt-2 text-[25px] font-bold tracking-tight text-[#18352b]">{value}</p>
+                                        <p className="mt-1 text-[11px] text-[#74867f]">
+                                            {label === "Tổng sinh viên" || label === "Sinh viên phụ trách"
+                                                ? "Hồ sơ đang quản lý"
+                                                : label.includes("Lớp")
+                                                    ? "Lớp đang hoạt động"
+                                                    : "Dữ liệu trong hệ thống"}
+                                        </p>
                                     </article>
                                 ))}
                             </section>
 
-                            <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
-                                <section className={`${panel} overflow-hidden rounded-2xl border border-emerald-900/10 bg-white`}>
-                                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-900/10 p-5">
+                            <section className="grid gap-4 xl:grid-cols-[1.65fr_.9fr]">
+                                <article className="rounded-[14px] border border-emerald-900/10 bg-white p-5 shadow-[0_8px_24px_rgba(22,66,49,.05)]">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
                                         <div>
-                                            <h2 className="text-base font-bold text-slate-900">Sinh viên</h2>
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                {user.role === "TEACHER" ? "Danh sách sinh viên trong các lớp được phân công" : "Danh sách hồ sơ sinh viên trong hệ thống"}
-                                            </p>
+                                            <h2 className="text-[15px] font-bold text-[#18352b]">Sinh viên theo lớp</h2>
+                                            <p className="mt-1 text-[11px] text-[#74867f]">Phân bố từ dữ liệu hiện có</p>
                                         </div>
-                                        <button onClick={() => navigate("students")} className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">
-                                            Xem danh sách <ArrowRight size={15} className="ml-1 inline" />
-                                        </button>
+                                        <button onClick={() => navigate("students")} className="text-[11px] font-semibold text-[#138a64] hover:text-[#0f6b50]">Xem sinh viên →</button>
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full min-w-[580px] text-left text-sm">
-                                            <thead className="bg-emerald-50/70 text-[10px] uppercase tracking-wider text-slate-500">
-                                                <tr>
-                                                    <th className="px-5 py-3 font-semibold">Họ và tên</th>
-                                                    <th className="px-4 py-3 font-semibold">Mã sinh viên</th>
-                                                    <th className="px-4 py-3 font-semibold">Lớp</th>
-                                                    <th className="px-5 py-3 font-semibold">Trạng thái</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-emerald-900/[.07]">
-                                                {!lookup.students ? (
-                                                    <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">Đang tải dữ liệu...</td></tr>
-                                                ) : lookup.students.length === 0 ? (
-                                                    <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">Chưa có sinh viên trong phạm vi hiển thị.</td></tr>
-                                                ) : [...lookup.students].slice(0, 5).map((student: Item) => (
-                                                    <tr key={student.id} className="hover:bg-emerald-50/40">
-                                                        <td className="px-5 py-3.5">
-                                                            <div className="flex items-center gap-3">
-                                                                <Initials name={student.fullName || student.name || "SV"} size="sm" />
-                                                                <span className="font-semibold text-slate-800">{student.fullName || student.name || "—"}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-slate-600">{student.code || "—"}</td>
-                                                        <td className="px-4 py-3.5 text-slate-600">{student.classroom?.name || student.classroomName || "Chưa xếp lớp"}</td>
-                                                        <td className="px-5 py-3.5">
-                                                            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                                                                {statusLabels[student.status] || student.status || "Đang học"}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </section>
+                                    {classDistribution.length === 0 ? (
+                                        <div className="grid h-[190px] place-items-center text-sm text-slate-500">
+                                            {lookup.students ? "Chưa có dữ liệu lớp để thống kê." : "Đang tải dữ liệu..."}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex h-[190px] items-end justify-around gap-3 border-b border-[#e5eee9] px-2 pt-3" style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 46px, #edf3ef 47px, #edf3ef 48px)" }}>
+                                                {classDistribution.map(([name, count]) => {
+                                                    const maxCount = Math.max(...classDistribution.map(([, total]) => total), 1);
+                                                    const height = Math.max(10, Math.round((count / maxCount) * 100));
+                                                    return (
+                                                        <div key={name} className="relative flex h-full min-w-0 flex-1 items-end justify-center">
+                                                            <div title={`${name}: ${count}`} className="w-4 rounded-t-md bg-[#138a64]" style={{ height: `${height}%` }} />
+                                                            <span className="absolute -bottom-6 max-w-full truncate text-[10px] text-[#97a59e]" title={name}>{name}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-9 flex items-center gap-2 text-[10px] text-[#74867f]">
+                                                <span className="h-[7px] w-[7px] rounded-full bg-[#138a64]" /> Số sinh viên
+                                            </div>
+                                        </>
+                                    )}
+                                </article>
 
-                                <section className={`${panel} rounded-2xl border border-emerald-900/10 bg-white p-5`}>
+                                <article className="rounded-[14px] border border-emerald-900/10 bg-white p-5 shadow-[0_8px_24px_rgba(22,66,49,.05)]">
                                     <div className="mb-4">
-                                        <h2 className="text-base font-bold text-slate-900">Thao tác nhanh</h2>
-                                        <p className="mt-1 text-xs text-slate-500">Truy cập các chức năng thường dùng</p>
+                                        <h2 className="text-[15px] font-bold text-[#18352b]">Thao tác nhanh</h2>
+                                        <p className="mt-1 text-[11px] text-[#74867f]">Truy cập chức năng thường dùng</p>
                                     </div>
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                    <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
                                         {dashboardActions.map((action) => {
                                             const Icon = icons[action];
                                             const label = action === "profile"
                                                 ? "Hồ sơ cá nhân"
                                                 : tabs.find((item) => item[0] === action)?.[1] || action;
                                             return (
-                                                <button
-                                                    key={action}
-                                                    onClick={() => navigate(action)}
-                                                    className="flex items-center gap-3 rounded-xl border border-emerald-900/10 bg-white p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60"
-                                                >
-                                                    <span className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Icon size={18} /></span>
-                                                    <span className="flex-1 text-sm font-semibold text-slate-800">{label}</span>
-                                                    <ArrowRight size={15} className="text-slate-400" />
+                                                <button key={action} onClick={() => navigate(action)} className="min-h-[68px] rounded-[11px] border border-[#e5eee9] p-3 text-left font-semibold text-[#18352b] transition hover:border-[#b7e2ce] hover:bg-[#fbfefc]">
+                                                    <span className="mb-1 block text-[#138a64]"><Icon size={17} /></span>
+                                                    <span className="text-[11px]">{label}</span>
                                                 </button>
                                             );
                                         })}
                                     </div>
                                     {user.role === "ADMIN" && (
-                                        <button
-                                            onClick={() => {
-                                                setForm({ status: "STUDYING" });
-                                                setEditing(null);
-                                                setTab("students");
-                                                setModal(true);
-                                            }}
-                                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
-                                        >
-                                            <Plus size={17} /> Thêm sinh viên
+                                        <button onClick={() => {
+                                            setForm({ status: "STUDYING" });
+                                            setEditing(null);
+                                            setTab("students");
+                                            setModal(true);
+                                        }} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#138a64] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f6b50]">
+                                            <Plus size={16} /> Thêm sinh viên
                                         </button>
                                     )}
-                                </section>
-                            </div>
+                                    <div className="mt-4 border-t border-[#e5eee9] pt-3">
+                                        <p className="text-xs font-bold text-[#18352b]">Tình trạng dữ liệu</p>
+                                        <p className="mt-1 text-[11px] text-[#74867f]">
+                                            {lookup.students
+                                                ? `${lookup.students.length} hồ sơ sinh viên đã được tải.`
+                                                : "Đang đồng bộ dữ liệu..."}
+                                        </p>
+                                    </div>
+                                </article>
+                            </section>
+
+                            <section className="overflow-hidden rounded-[14px] border border-emerald-900/10 bg-white shadow-[0_8px_24px_rgba(22,66,49,.05)]">
+                                <div className="flex flex-wrap items-center justify-between gap-3 p-5 pb-3">
+                                    <div>
+                                        <h2 className="text-[15px] font-bold text-[#18352b]">Sinh viên mới cập nhật</h2>
+                                        <p className="mt-1 text-[11px] text-[#74867f]">Danh sách hồ sơ sinh viên trong phạm vi của bạn</p>
+                                    </div>
+                                    <button onClick={() => navigate("students")} className="text-[11px] font-semibold text-[#138a64] hover:text-[#0f6b50]">Xem tất cả →</button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[650px] border-collapse text-left">
+                                        <thead className="bg-[#f7fbf8] text-[9px] font-bold uppercase tracking-[.1em] text-[#8a9a92]">
+                                            <tr>
+                                                <th className="px-5 py-3">Sinh viên</th>
+                                                <th className="px-4 py-3">Mã sinh viên</th>
+                                                <th className="px-4 py-3">Lớp</th>
+                                                <th className="px-5 py-3">Trạng thái</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {!lookup.students ? (
+                                                <tr><td colSpan={4} className="px-5 py-8 text-center text-xs text-slate-500">Đang tải dữ liệu...</td></tr>
+                                            ) : lookup.students.length === 0 ? (
+                                                <tr><td colSpan={4} className="px-5 py-8 text-center text-xs text-slate-500">Chưa có sinh viên trong phạm vi hiển thị.</td></tr>
+                                            ) : [...lookup.students].sort((a: Item, b: Item) => Number(b.id || 0) - Number(a.id || 0)).slice(0, 5).map((student: Item) => (
+                                                <tr key={student.id} className="border-t border-[#eef3f0] hover:bg-[#f5fcf7]">
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <Initials name={student.fullName || student.name || "SV"} size="sm" />
+                                                            <span className="text-[11px] font-semibold text-[#18352b]">{student.fullName || student.name || "—"}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-[11px] text-[#74867f]">{student.code || "—"}</td>
+                                                    <td className="px-4 py-3 text-[11px] text-[#74867f]">{student.classroom?.name || student.classroomName || "Chưa xếp lớp"}</td>
+                                                    <td className="px-5 py-3">
+                                                        <span className="inline-block rounded-full bg-[#eaf7f1] px-2.5 py-1 text-[9px] font-bold text-[#247455]">
+                                                            {statusLabels[student.status] || student.status || "Đang học"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
                         </div>
                     )}
                     {specs[tab] && (
