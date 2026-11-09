@@ -47,9 +47,12 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/catalog/students", "/api/catalog/students/**")
-                        .hasAnyRole("ADMIN", "TEACHER").requestMatchers(HttpMethod.GET, "/api/catalog/**")
-                        .hasAnyRole("ADMIN", "TEACHER").requestMatchers("/api/catalog/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/catalog/students", "/api/catalog/students/**",
+                                "/api/catalog/teachers", "/api/catalog/teachers/**",
+                                "/api/catalog/classes", "/api/catalog/classes/**")
+                        .hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/catalog/**").hasRole("ADMIN")
+                        .requestMatchers("/api/catalog/**").hasRole("ADMIN")
                         .requestMatchers("/api/teacher/**").hasRole("TEACHER").requestMatchers("/api/student/**")
                         .hasRole("STUDENT").requestMatchers("/api/me").authenticated().anyRequest().denyAll())
                 .httpBasic(Customizer.withDefaults()).build();
