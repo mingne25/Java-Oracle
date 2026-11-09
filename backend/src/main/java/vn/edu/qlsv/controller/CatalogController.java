@@ -5,6 +5,7 @@ import org.springframework.http.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import vn.edu.qlsv.model.*;
 import vn.edu.qlsv.repository.*;
@@ -333,18 +334,30 @@ public class CatalogController {
         }
     }
 
+    private String deleteConflictMessage(String type) {
+        return switch (type) {
+            case "years" -> "Không thể xóa khóa học vì đang có khoa liên kết. Hãy chuyển hoặc xóa các khoa liên quan trước.";
+            case "faculties" -> "Không thể xóa khoa vì đang có lớp, môn học hoặc giảng viên thuộc khoa. Hãy chuyển hoặc xóa dữ liệu liên quan trước.";
+            case "classes" -> "Không thể xóa lớp vì đang có sinh viên thuộc lớp. Hãy chuyển sinh viên sang lớp khác trước.";
+            case "teachers" -> "Không thể xóa giảng viên vì đang phụ trách lớp hoặc có tài khoản liên kết. Hãy gỡ các liên kết này trước.";
+            case "students" -> "Không thể xóa sinh viên vì đang có tài khoản liên kết. Hãy gỡ liên kết tài khoản trước.";
+            default -> "Không thể xóa bản ghi vì dữ liệu khác đang tham chiếu đến bản ghi này. Hãy gỡ các liên kết trước.";
+        };
+    }
+
     @DeleteMapping("/{type}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void delete(@PathVariable String type, @PathVariable Long id) {
-        switch (type) {
-            case "years" -> years.deleteById(id);
-            case "faculties" -> faculties.deleteById(id);
-            case "classes" -> classes.deleteById(id);
-            case "subjects" -> subjects.deleteById(id);
-            case "teachers" -> teachers.deleteById(id);
-            case "students" -> students.deleteById(id);
-            default -> throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        JpaRepository<?, Long> repo = repository(type);
+        if (!repo.existsById(id))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bản ghi cần xóa.");
+
+        try {
+            repo.deleteById(id);
+            repo.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, deleteConflictMessage(type), e);
         }
     }
 }
