@@ -103,7 +103,7 @@ const statusLabels: Record<string, string> = {
     EXPELLED: "Buộc thôi học",
 };
 const genderLabels: Record<string, string> = { MALE: "Nam", FEMALE: "Nữ", OTHER: "Khác", Nam: "Nam", "Nữ": "Nữ", "Khác": "Khác" };
-const genderCode = (value: string) => ({ Nam: "MALE", "Nữ": "FEMALE", "Khác": "OTHER" }[value] || value);
+const genderCode: Record<string, string> = { Nam: "MALE", "Nữ": "FEMALE", "Khác": "OTHER" };
 const roleLabels: Record<string, string> = {
     ADMIN: "Quản trị viên",
     TEACHER: "Giảng viên",
@@ -538,7 +538,7 @@ export default function Page() {
         const d = { ...x };
         for (const k of ["courseYear", "faculty", "classroom"])
             if (x[k]) d[k + "Id"] = x[k].id;
-        if (d.gender) d.gender = genderCode(d.gender);
+        if (d.gender) d.gender = genderCode[d.gender] || d.gender;
         setForm(d);
         setModal(true);
     }
