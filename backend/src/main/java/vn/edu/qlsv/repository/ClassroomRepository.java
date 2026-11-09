@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 import vn.edu.qlsv.model.Classroom;
 import java.util.Optional;
 public interface ClassroomRepository extends JpaRepository<Classroom,Long> {
+ java.util.List<Classroom> findByTeacher_Id(Long teacherId);
  @Lock(LockModeType.PESSIMISTIC_WRITE)
  @Query("select c from Classroom c where c.id = :id")
  Optional<Classroom> findByIdForUpdate(@Param("id") Long id);

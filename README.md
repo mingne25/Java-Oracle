@@ -38,14 +38,17 @@ Khóa học → Khoa → Giảng viên → Lớp (chọn giảng viên cùng kho
 
 ## Quyền
 - `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; phân công một giảng viên cùng khoa cho mỗi lớp; tạo tài khoản Teacher/Student; dashboard.
-- `TEACHER`: xem danh sách giảng viên trong khoa, chỉ xem học sinh thuộc các lớp được phân công, xem hồ sơ cá nhân; danh sách học sinh phân trang 25 bản ghi mỗi trang.
+- `TEACHER`: xem giảng viên cùng khoa, học sinh và lớp được phân công, cùng hồ sơ cá nhân; danh sách học sinh phân trang 25 bản ghi mỗi trang. Không được xem danh mục khóa học, khoa hoặc môn học.
 - `STUDENT`: chỉ xem hồ sơ cá nhân; không truy cập API danh mục.
 - Không có đăng ký tài khoản công khai, không tạo thêm admin qua API.
 
 ## API
 - `GET /api/health` (public)
 - `GET /api/me` (đăng nhập)
-- `GET /api/catalog/{years|faculties|classes|subjects|teachers|students}` (Admin/Giảng viên; Giảng viên xem học sinh trong các lớp được phân công và giảng viên trong khoa)
+- `GET /api/catalog/students` (Admin/Giảng viên; Teacher chỉ xem học sinh trong lớp được phân công)
+- `GET /api/catalog/teachers` (Admin/Giảng viên; Teacher chỉ xem giảng viên cùng khoa)
+- `GET /api/catalog/classes` (Admin/Giảng viên; Teacher chỉ xem lớp được phân công)
+- `GET /api/catalog/{years|faculties|subjects}` (chỉ Admin)
 - `POST/PUT/DELETE /api/catalog/{type}` (Admin)
 - `GET /api/admin/stats`, `POST /api/admin/users` (Admin)
 - `GET /api/teacher/profile` (Teacher), `GET /api/student/profile` (Student)
