@@ -145,7 +145,7 @@ async function request(path: string, init: RequestInit = {}) {
         } catch {
             detail = body.slice(0, 180);
         }
-        throw Error(`HTTP ${r.status}${detail ? ": " + detail : ""}`);
+        throw Error(detail || `Yêu cầu thất bại (HTTP ${r.status}).`);
     }
     return r.status === 204 ? null : r.json();
 }
