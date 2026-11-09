@@ -48,6 +48,7 @@ import {
 type Item = Record<string, any>;
 type Field = [string, string, string?];
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const STUDENT_PAGE_SIZE = 25;
 const tabs = [
     ["years", "Khóa học"],
     ["faculties", "Khoa"],
@@ -71,6 +72,7 @@ const specs: Record<string, Field[]> = {
         ["code", "Mã lớp"],
         ["name", "Tên lớp"],
         ["facultyId", "Khoa", "faculties"],
+        ["teacherId", "Giảng viên phụ trách", "teachers"],
     ],
     subjects: [
         ["code", "Mã môn"],
@@ -399,6 +401,7 @@ export default function Page() {
         [data, setData] = useState<Item[]>([]),
         [listLoading, setListLoading] = useState(false),
         [listError, setListError] = useState(""),
+        [studentPage, setStudentPage] = useState(0),
         [lookup, setLookup] = useState<Record<string, Item[]>>({}),
         [stats, setStats] = useState<Item>({}),
         [accounts, setAccounts] = useState<Item[]>([]),
@@ -420,6 +423,7 @@ export default function Page() {
             setListLoading(true);
             setListError("");
             setData([]);
+            setStudentPage(0);
         } else {
             setListError("");
             setListLoading(false);
@@ -509,6 +513,7 @@ export default function Page() {
         setData([]);
         setListLoading(false);
         setListError("");
+        setStudentPage(0);
         listLoadId.current += 1;
         setProfile(null);
         setError("");
@@ -519,6 +524,7 @@ export default function Page() {
         setData([]);
         setListLoading(false);
         setListError("");
+        setStudentPage(0);
         listLoadId.current += 1;
         setSidebar(false);
         setQuery("");
@@ -570,7 +576,7 @@ export default function Page() {
     function edit(x: Item) {
         setEditing(x.id);
         const d = { ...x };
-        for (const k of ["courseYear", "faculty", "classroom"])
+        for (const k of ["courseYear", "faculty", "classroom", "teacher"])
             if (x[k]) d[k + "Id"] = x[k].id;
         if (d.gender) d.gender = genderCode[d.gender] || d.gender;
         setForm(d);
@@ -612,6 +618,13 @@ export default function Page() {
                 ),
             ),
         [data, query],
+    );
+    const pageCount = Math.max(1, Math.ceil(filtered.length / STUDENT_PAGE_SIZE));
+    const visibleRows = useMemo(
+        () => tab === "students"
+            ? filtered.slice(studentPage * STUDENT_PAGE_SIZE, (studentPage + 1) * STUDENT_PAGE_SIZE)
+            : filtered,
+        [filtered, studentPage, tab],
     );
     const visibleTabs =
         user?.role === "ADMIN"
@@ -1032,7 +1045,10 @@ export default function Page() {
                                             className="soft-input w-[220px] py-2.5 pl-10 text-xs sm:w-[270px]"
                                             placeholder="Tìm kiếm..."
                                             value={query}
-                                            onChange={(e) => setQuery(e.target.value)}
+                                            onChange={(e) => {
+                                                setStudentPage(0);
+                                                setQuery(e.target.value);
+                                            }}
                                         />
                                     </div>
                                     <button
@@ -1060,7 +1076,7 @@ export default function Page() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filtered.map((x) => (
+                                        {visibleRows.map((x) => (
                                             <tr key={x.id}>
                                                 <td>
                                                     <div className="flex items-center gap-3">
@@ -1081,7 +1097,7 @@ export default function Page() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {x.classroom?.name ||
+                                                    {(tab === "classes" ? x.teacher?.fullName : x.classroom?.name) ||
                                                         x.faculty?.name ||
                                                         x.courseYear?.name ||
                                                         (tab === "years" ? `Năm ${x.startYear}` : "—")}
@@ -1494,11 +1510,11 @@ export default function Page() {
                                                 required
                                                 value={form[key] || ""}
                                                 onChange={(e) =>
-                                                    setForm({ ...form, [key]: Number(e.target.value) })
+                                                    setForm({ ...form, [key]: Number(e.target.value), ...(tab === "classes" && key === "facultyId" ? { teacherId: undefined } : {}) })
                                                 }
                                             >
                                                 <option value="">Chọn {label.toLowerCase()}</option>
-                                                {lookup[type].map((x) => (
+                                                {(type === "teachers" ? lookup[type].filter((x) => String(x.faculty?.id) === String(form.facultyId)) : lookup[type]).map((x) => (
                                                     <option key={x.id} value={x.id}>
                                                         {x.code} · {shortName(x)}
                                                     </option>
