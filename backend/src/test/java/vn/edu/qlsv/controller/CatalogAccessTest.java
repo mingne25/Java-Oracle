@@ -53,8 +53,8 @@ class CatalogAccessTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/catalog/teachers").with(user("teacher01").roles("TEACHER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(1));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1]").doesNotExist());
 
         verify(teachers).findByFaculty_Id(12L);
         verify(teachers, never()).findAll();
@@ -69,7 +69,8 @@ class CatalogAccessTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/catalog/teachers").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
 
         verify(teachers).findAll();
     }
