@@ -1169,15 +1169,37 @@ export default function Page() {
                                     </tbody>
                                 </table>
                             </div>
-                            <div className="flex items-center justify-between border-t border-white/[.07] px-6 py-4 text-xs text-slate-500">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.07] px-6 py-4 text-xs text-slate-500">
                                 <span>
                                     {listLoading
                                         ? "Đang tải..."
                                         : listError
                                             ? "Danh sách chưa tải được"
-                                            : "Hiển thị " + filtered.length + " / " + data.length + " bản ghi"}
+                                            : tab === "students"
+                                                ? "Hiển thị " + (filtered.length === 0 ? 0 : studentPage * STUDENT_PAGE_SIZE + 1) + "–" + Math.min((studentPage + 1) * STUDENT_PAGE_SIZE, filtered.length) + " / " + filtered.length + " sinh viên · Trang " + (studentPage + 1) + "/" + pageCount
+                                                : "Hiển thị " + filtered.length + " / " + data.length + " bản ghi"}
                                 </span>
-                                <span>Dữ liệu trực tiếp từ Oracle</span>
+                                {tab === "students" && !listLoading && !listError && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setStudentPage((page) => Math.max(0, page - 1))}
+                                            disabled={studentPage === 0}
+                                            className="rounded-lg border border-emerald-900/10 bg-emerald-50 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Trang trước
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStudentPage((page) => Math.min(pageCount - 1, page + 1))}
+                                            disabled={studentPage >= pageCount - 1}
+                                            className="rounded-lg border border-emerald-900/10 bg-emerald-50 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Trang sau
+                                        </button>
+                                    </div>
+                                )}
+                                <span className="hidden sm:inline">Dữ liệu trực tiếp từ Oracle</span>
                             </div>
                         </section>
                     )}
