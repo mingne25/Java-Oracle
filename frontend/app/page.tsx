@@ -1069,7 +1069,7 @@ export default function Page() {
                                         <tr>
                                             <th>Thông tin</th>
                                             <th>Mã định danh</th>
-                                            <th>Liên kết</th>
+                                            <th>{tab === "classes" ? "Giảng viên phụ trách" : "Liên kết"}</th>
                                             {tab === "students" && <th>Trạng thái</th>}
                                             {user.role === "ADMIN" && (
                                                 <th className="text-right">Thao tác</th>
@@ -1098,10 +1098,12 @@ export default function Page() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {(tab === "classes" ? x.teacher?.fullName : x.classroom?.name) ||
-                                                        x.faculty?.name ||
-                                                        x.courseYear?.name ||
-                                                        (tab === "years" ? `Năm ${x.startYear}` : "—")}
+                                                    {tab === "classes"
+                                                        ? x.teacher?.fullName || "Chưa phân công"
+                                                        : x.classroom?.name ||
+                                                          x.faculty?.name ||
+                                                          x.courseYear?.name ||
+                                                          (tab === "years" ? `Năm ${x.startYear}` : "—")}
                                                 </td>
                                                 {tab === "students" && (
                                                     <td>
@@ -1112,12 +1114,12 @@ export default function Page() {
                                                     <td>
                                                         <div className="flex justify-end gap-2">
                                                             <button
-                                                                title="Chỉnh sửa"
-                                                                aria-label={`Sửa ${shortName(x)}`}
+                                                                title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"}
+                                                                aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
                                                                 onClick={() => edit(x)}
                                                                 className="rounded-lg border border-emerald-900/10 p-2 text-emerald-300 hover:bg-emerald-500/15"
                                                             >
-                                                                <Edit3 size={16} />
+                                                                {tab === "classes" ? <UserRoundPlus size={16} /> : <Edit3 size={16} />}
                                                             </button>
                                                             <button
                                                                 title="Xóa"
@@ -1395,7 +1397,9 @@ export default function Page() {
                                         : `${editing !== null ? "Cập nhật" : "Thêm"} ${title.toLowerCase()}`}
                                 </h2>
                                 <p className="mt-2 text-xs text-slate-500">
-                                    Điền đầy đủ thông tin trước khi lưu vào hệ thống.
+                                    {tab === "classes"
+                                        ? "Chọn giảng viên phụ trách thuộc cùng khoa với lớp."
+                                        : "Điền đầy đủ thông tin trước khi lưu vào hệ thống."}
                                 </p>
                             </div>
                             <button
@@ -1543,7 +1547,13 @@ export default function Page() {
                                                     });
                                                 }}
                                             >
-                                                <option value="">Chọn {label.toLowerCase()}</option>
+                                                <option value="">
+                                                    {tab === "classes" && key === "teacherId"
+                                                        ? form.facultyId
+                                                            ? "Chọn giảng viên phụ trách"
+                                                            : "Chọn khoa trước"
+                                                        : "Chọn " + label.toLowerCase()}
+                                                </option>
                                                 {(type === "teachers"
                                                     ? lookup[type].filter(
                                                         (x) => String(x.faculty?.id) === String(form.facultyId),
