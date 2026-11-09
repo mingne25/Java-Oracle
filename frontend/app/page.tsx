@@ -1338,7 +1338,7 @@ export default function Page() {
                                     </div>
                                     <div className="inline-flex items-center gap-2 self-start rounded-full border border-[#d4eee0] bg-[#f4fbf7] px-3 py-2 text-[11px] font-medium text-[#247455] sm:self-center">
                                         <span className={`h-2 w-2 rounded-full ${profile ? "bg-[#138a64]" : "animate-pulse bg-amber-400"}`} />
-                                        {profile ? "Hồ sơ đã đồng bộ" : "Đang tải hồ sơ"}
+                                        {profile ? "Hồ sơ đã đồng bộ" : error ? "Không tải được hồ sơ" : "Đang tải hồ sơ"}
                                     </div>
                                 </div>
 
