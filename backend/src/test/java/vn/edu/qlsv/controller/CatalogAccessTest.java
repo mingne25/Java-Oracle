@@ -119,8 +119,7 @@ class CatalogAccessTest {
                         .content("{\"code\":\"C2\",\"name\":\"Class 2\",\"facultyId\":12,\"teacherId\":32}"))
                 .andExpect(status().isBadRequest());
 
-        verify(classes).save(argThat(classroom -> classroom.teacher.id.equals(31L)));
-        verify(classes, times(1)).save(any(Classroom.class));
+        verify(classes, times(1)).save(argThat(classroom -> classroom.teacher.id.equals(31L)));
     }
 
     private Student student(Long id, Long assignedTeacherId) {
