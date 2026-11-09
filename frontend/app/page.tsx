@@ -551,13 +551,30 @@ export default function Page() {
         setBusy(true);
         setError("");
         try {
-            await request(
+            const saved = await request(
                 "/api/catalog/" + tab + (editing !== null ? "/" + editing : ""),
                 {
                     method: editing !== null ? "PUT" : "POST",
                     body: JSON.stringify(form),
                 },
             );
+            if (tab === "classes") {
+                const teacherId = Number(form.teacherId);
+                const classId = Number(saved?.id ?? editing);
+                const persistedClasses = await request("/api/catalog/classes");
+                const persisted = persistedClasses.find(
+                    (item: Item) => Number(item.id) === classId,
+                );
+                if (
+                    !teacherId ||
+                    Number(saved?.teacher?.id) !== teacherId ||
+                    Number(persisted?.teacher?.id) !== teacherId
+                ) {
+                    throw new Error(
+                        "Backend chưa xác nhận lưu giảng viên cho lớp. Vui lòng kiểm tra lại dữ liệu.",
+                    );
+                }
+            }
             setModal(false);
             setEditing(null);
             setForm({});
