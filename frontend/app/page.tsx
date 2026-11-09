@@ -431,7 +431,11 @@ export default function Page() {
         setError("");
         try {
             const keys = ["years", "faculties", "classes", "students", "teachers"];
-            const required = role === "STUDENT" ? [] : keys;
+            const required = role === "ADMIN"
+                ? keys
+                : role === "TEACHER" && current === "dashboard"
+                    ? ["classes", "students"]
+                    : [];
             const results = await Promise.all(
                 required.map((k) => request("/api/catalog/" + k)),
             );
@@ -439,13 +443,15 @@ export default function Page() {
                 required.map((k, i) => [k, results[i]]),
             );
             setLookup(mapped);
-            if (role === "TEACHER")
+            if (role === "TEACHER" && current === "dashboard") {
+                const ownProfile = await request("/api/teacher/profile");
                 setStats({
                     students: mapped.students?.length ?? 0,
                     classes: mapped.classes?.length ?? 0,
-                    faculties: mapped.faculties?.length ?? 0,
-                    years: mapped.years?.length ?? 0,
+                    faculties: ownProfile.faculty ? 1 : 0,
+                    years: ownProfile.faculty?.courseYear ? 1 : 0,
                 });
+            }
             if (specs[current]) {
                 const rows = await request("/api/catalog/" + current);
                 let visibleRows = rows;
@@ -520,6 +526,12 @@ export default function Page() {
         setMessage("");
     }
     function navigate(t: string) {
+        const allowedTabs = user?.role === "ADMIN"
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile"]
+            : user?.role === "TEACHER"
+                ? ["dashboard", "students", "teachers", "profile"]
+                : ["profile"];
+        if (!allowedTabs.includes(t)) return;
         setTab(t);
         setData([]);
         setListLoading(false);
@@ -951,8 +963,9 @@ export default function Page() {
                                         <Layers3 size={20} className="text-slate-500" />
                                     </div>
                                     <div className="grid gap-3 sm:grid-cols-2">
-                                        {["students", "teachers", "classes", "subjects"].map(
-                                            (t, i) => {
+                                        {(user.role === "ADMIN"
+                                            ? ["students", "teachers", "classes", "subjects"]
+                                            : ["students", "teachers"]).map((t, i) => {
                                                 const Icon = icons[t];
                                                 return (
                                                     <button
@@ -1100,7 +1113,8 @@ export default function Page() {
                                                 <td>
                                                     {tab === "classes"
                                                         ? x.teacher?.fullName || "Chưa phân công"
-                                                        : x.classroom?.name ||
+                                                        : x.classroomName ||
+                                                          x.classroom?.name ||
                                                           x.faculty?.name ||
                                                           x.courseYear?.name ||
                                                           (tab === "years" ? `Năm ${x.startYear}` : "—")}
