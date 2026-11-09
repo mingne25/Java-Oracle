@@ -656,6 +656,22 @@ export default function Page() {
             : filtered,
         [filtered, studentPage, tab],
     );
+    const dashboardCards = user?.role === "ADMIN"
+        ? [
+            { label: "Tổng sinh viên", value: stats.students ?? "—", icon: GraduationCap },
+            { label: "Giảng viên", value: lookup.teachers?.length ?? "—", icon: UsersRound },
+            { label: "Lớp học", value: stats.classes ?? "—", icon: School },
+            { label: "Khoa đào tạo", value: stats.faculties ?? "—", icon: Building2 },
+        ]
+        : [
+            { label: "Sinh viên phụ trách", value: stats.students ?? "—", icon: GraduationCap },
+            { label: "Lớp được phân công", value: stats.classes ?? "—", icon: School },
+            { label: "Khoa", value: stats.faculties ?? "—", icon: Building2 },
+            { label: "Khóa học", value: stats.years ?? "—", icon: CalendarDays },
+        ];
+    const dashboardActions = user?.role === "ADMIN"
+        ? ["students", "teachers", "classes", "faculties"]
+        : ["students", "teachers", "profile"];
     const visibleTabs =
         user?.role === "ADMIN"
             ? [
@@ -878,173 +894,111 @@ export default function Page() {
                         </div>
                     )}
                     {tab === "dashboard" && (
-                        <>
-                            <section className="shine relative mb-7 overflow-hidden rounded-[25px] border border-emerald-400/15 bg-gradient-to-r from-[#25265d] via-[#29265a] to-[#132f56] px-7 py-8 sm:px-9 sm:py-10">
-                                <div className="absolute -right-10 -top-20 h-72 w-72 rounded-full border border-emerald-900/10" />
-                                <div className="absolute right-8 top-2 h-52 w-52 rounded-full border border-emerald-900/10" />
-                                <div className="relative z-10">
-                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-100">
-                                        <Sparkles size={14} className="text-lime-300" /> DIGITAL
-                                        CAMPUS EXPERIENCE
-                                    </div>
-                                    <h2 className="max-w-[560px] text-2xl font-black leading-tight sm:text-3xl">
-                                        Nơi dữ liệu trở thành {" "}
-                                        <span className="text-lime-300">sức mạnh giáo dục.</span>
-                                    </h2>
-                                    <p className="mt-3 max-w-[520px] text-sm leading-6 text-emerald-100/70">
-                                        Quản lý học vụ tập trung, trực quan và hiệu quả trên một nền
-                                        tảng duy nhất.
-                                    </p>
-                                    <button
-                                        onClick={() => navigate("students")}
-                                        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-100"
-                                    >
-                                        Xem danh sách sinh viên <ArrowRight size={15} />
-                                    </button>
-                                </div>
-                            </section>
-                            <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                {[
-                                    {
-                                        key: "students",
-                                        label: "Tổng sinh viên",
-                                        icon: GraduationCap,
-                                        accent: "from-emerald-500/25 to-emerald-500/0",
-                                        color: "text-emerald-300",
-                                        note: "Hồ sơ đang quản lý",
-                                    },
-                                    {
-                                        key: "classes",
-                                        label: "Lớp học",
-                                        icon: School,
-                                        accent: "from-lime-500/20 to-lime-500/0",
-                                        color: "text-lime-300",
-                                        note: "Lớp hành chính",
-                                    },
-                                    {
-                                        key: "faculties",
-                                        label: "Khoa đào tạo",
-                                        icon: Building2,
-                                        accent: "from-teal-500/20 to-teal-500/0",
-                                        color: "text-teal-300",
-                                        note: "Đơn vị chuyên môn",
-                                    },
-                                    {
-                                        key: "years",
-                                        label: "Khóa học",
-                                        icon: CalendarDays,
-                                        accent: "from-amber-500/20 to-amber-500/0",
-                                        color: "text-amber-300",
-                                        note: "Niên khóa đã mở",
-                                    },
-                                ].map((s, i) => (
-                                    <div
-                                        key={s.key}
-                                        className={`${panel} animate-rise relative overflow-hidden p-5`}
-                                        style={{ animationDelay: `${i * 70}ms` }}
-                                    >
-                                        <div
-                                            className={`absolute inset-0 bg-gradient-to-br ${s.accent} pointer-events-none`}
-                                        />
-                                        <div className="relative flex items-start justify-between">
-                                            <div>
-                                                <p className="text-xs font-semibold text-slate-500">
-                                                    {s.label}
-                                                </p>
-                                                <p className="mt-4 text-4xl font-black tracking-tight">
-                                                    {stats[s.key] ?? "—"}
-                                                </p>
-                                            </div>
-                                            <div
-                                                className={`rounded-2xl bg-emerald-50 p-3 ${s.color}`}
-                                            >
-                                                <s.icon size={22} />
-                                            </div>
+                        <div className="space-y-6">
+                            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                {dashboardCards.map(({ label, value, icon: Icon }) => (
+                                    <article key={label} className={`${panel} rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm`}>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-sm font-medium text-slate-600">{label}</p>
+                                            <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+                                                <Icon size={20} />
+                                            </span>
                                         </div>
-                                        <div className="relative mt-5 flex items-center gap-2 text-[11px] text-slate-500">
-                                            <Activity size={13} className="text-emerald-400" />
-                                            {s.note}
-                                        </div>
-                                    </div>
+                                        <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+                                    </article>
                                 ))}
-                            </div>
-                            <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
-                                <div className={`${panel} p-6`}>
-                                    <div className="mb-6 flex items-center justify-between">
+                            </section>
+
+                            <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
+                                <section className={`${panel} overflow-hidden rounded-2xl border border-emerald-900/10 bg-white`}>
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-900/10 p-5">
                                         <div>
-                                            <h3 className="text-base font-bold">Truy cập nhanh</h3>
+                                            <h2 className="text-base font-bold text-slate-900">Sinh viên</h2>
                                             <p className="mt-1 text-xs text-slate-500">
-                                                Các phân hệ thường sử dụng
+                                                {user.role === "TEACHER" ? "Danh sách sinh viên trong các lớp được phân công" : "Danh sách hồ sơ sinh viên trong hệ thống"}
                                             </p>
                                         </div>
-                                        <Layers3 size={20} className="text-slate-500" />
+                                        <button onClick={() => navigate("students")} className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">
+                                            Xem danh sách <ArrowRight size={15} className="ml-1 inline" />
+                                        </button>
                                     </div>
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {(user.role === "ADMIN"
-                                            ? ["students", "teachers", "classes", "subjects"]
-                                            : ["students", "teachers"]).map((t, i) => {
-                                                const Icon = icons[t];
-                                                return (
-                                                    <button
-                                                        key={t}
-                                                        onClick={() => navigate(t)}
-                                                        className="group flex items-center gap-4 rounded-2xl border border-white/[.07] bg-emerald-50/70 p-4 text-left hover:border-emerald-400/35 hover:bg-emerald-400/5"
-                                                    >
-                                                        <span
-                                                            className={`rounded-xl p-3 ${["bg-emerald-500/15 text-emerald-300", "bg-teal-500/15 text-teal-300", "bg-lime-500/15 text-lime-300", "bg-amber-500/15 text-amber-300"][i]}`}
-                                                        >
-                                                            <Icon size={20} />
-                                                        </span>
-                                                        <span className="flex-1">
-                                                            <span className="block text-sm font-bold">
-                                                                {tabs.find((x) => x[0] === t)?.[1]}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[580px] text-left text-sm">
+                                            <thead className="bg-emerald-50/70 text-[10px] uppercase tracking-wider text-slate-500">
+                                                <tr>
+                                                    <th className="px-5 py-3 font-semibold">Họ và tên</th>
+                                                    <th className="px-4 py-3 font-semibold">Mã sinh viên</th>
+                                                    <th className="px-4 py-3 font-semibold">Lớp</th>
+                                                    <th className="px-5 py-3 font-semibold">Trạng thái</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-emerald-900/[.07]">
+                                                {!lookup.students ? (
+                                                    <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">Đang tải dữ liệu...</td></tr>
+                                                ) : lookup.students.length === 0 ? (
+                                                    <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">Chưa có sinh viên trong phạm vi hiển thị.</td></tr>
+                                                ) : [...lookup.students].slice(0, 5).map((student: Item) => (
+                                                    <tr key={student.id} className="hover:bg-emerald-50/40">
+                                                        <td className="px-5 py-3.5">
+                                                            <div className="flex items-center gap-3">
+                                                                <Initials name={student.fullName || student.name || "SV"} size="sm" />
+                                                                <span className="font-semibold text-slate-800">{student.fullName || student.name || "—"}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3.5 text-slate-600">{student.code || "—"}</td>
+                                                        <td className="px-4 py-3.5 text-slate-600">{student.classroom?.name || student.classroomName || "Chưa xếp lớp"}</td>
+                                                        <td className="px-5 py-3.5">
+                                                            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                                                {statusLabels[student.status] || student.status || "Đang học"}
                                                             </span>
-                                                            <span className="mt-1 block text-[11px] text-slate-500">
-                                                                Xem và quản lý
-                                                            </span>
-                                                        </span>
-                                                        <ArrowUpRight
-                                                            size={16}
-                                                            className="text-slate-600 group-hover:text-emerald-300"
-                                                        />
-                                                    </button>
-                                                );
-                                            },
-                                        )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </div>
-                                <div className={`${panel} flex flex-col justify-between p-6`}>
-                                    <div>
-                                        <div className="mb-5 flex items-center gap-2">
-                                            <Database size={19} className="text-lime-300" />
-                                            <h3 className="text-base font-bold">Hạ tầng hệ thống</h3>
-                                        </div>
-                                        <div className="space-y-4">
-                                            {[
-                                                ["Cơ sở dữ liệu", "Oracle Database 26ai"],
-                                                ["Backend", "Spring Boot 3.5.6"],
-                                                ["Frontend", "Next.js 16 + Tailwind"],
-                                                ["Xác thực", "Role-based access"],
-                                            ].map(([a, b]) => (
-                                                <div
-                                                    key={a}
-                                                    className="flex justify-between gap-3 border-b border-emerald-900/10 pb-3 text-xs"
+                                </section>
+
+                                <section className={`${panel} rounded-2xl border border-emerald-900/10 bg-white p-5`}>
+                                    <div className="mb-4">
+                                        <h2 className="text-base font-bold text-slate-900">Thao tác nhanh</h2>
+                                        <p className="mt-1 text-xs text-slate-500">Truy cập các chức năng thường dùng</p>
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                        {dashboardActions.map((action) => {
+                                            const Icon = icons[action];
+                                            const label = action === "profile"
+                                                ? "Hồ sơ cá nhân"
+                                                : tabs.find((item) => item[0] === action)?.[1] || action;
+                                            return (
+                                                <button
+                                                    key={action}
+                                                    onClick={() => navigate(action)}
+                                                    className="flex items-center gap-3 rounded-xl border border-emerald-900/10 bg-white p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60"
                                                 >
-                                                    <span className="text-slate-500">{a}</span>
-                                                    <span className="text-right font-semibold text-slate-700">
-                                                        {b}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                    <span className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Icon size={18} /></span>
+                                                    <span className="flex-1 text-sm font-semibold text-slate-800">{label}</span>
+                                                    <ArrowRight size={15} className="text-slate-400" />
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                    <p className="mt-5 flex items-center gap-2 text-[11px] text-slate-500">
-                                        <ShieldCheck size={15} className="text-emerald-400" /> Kết
-                                        nối bảo mật theo quyền truy cập
-                                    </p>
-                                </div>
+                                    {user.role === "ADMIN" && (
+                                        <button
+                                            onClick={() => {
+                                                setForm({ status: "STUDYING" });
+                                                setEditing(null);
+                                                setTab("students");
+                                                setModal(true);
+                                            }}
+                                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                                        >
+                                            <Plus size={17} /> Thêm sinh viên
+                                        </button>
+                                    )}
+                                </section>
                             </div>
-                        </>
+                        </div>
                     )}
                     {specs[tab] && (
                         <section className={`${panel} overflow-hidden`}>
