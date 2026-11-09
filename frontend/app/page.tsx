@@ -429,8 +429,16 @@ export default function Page() {
                     faculties: mapped.faculties?.length ?? 0,
                     years: mapped.years?.length ?? 0,
                 });
-            if (specs[current]) setData(await request("/api/catalog/" + current));
-            else if (current === "dashboard" && role === "ADMIN")
+            if (specs[current]) {
+                const rows = await request("/api/catalog/" + current);
+                if (current === "teachers" && role === "TEACHER") {
+                    const ownProfile = await request("/api/teacher/profile");
+                    const facultyId = ownProfile.faculty?.id;
+                    setData(rows.filter((teacher: Item) => teacher.faculty?.id === facultyId));
+                } else {
+                    setData(rows);
+                }
+            } else if (current === "dashboard" && role === "ADMIN")
                 setStats(await request("/api/admin/stats"));
             else if (current === "accounts" && role === "ADMIN")
                 setAccounts(await request("/api/admin/users"));
@@ -976,6 +984,9 @@ export default function Page() {
                                         Danh sách {title.toLowerCase()}
                                     </h2>
                                     <p className="mt-1 text-xs text-slate-500">
+                                        {tab === "teachers" && user.role === "TEACHER"
+                                            ? "Phạm vi khoa của bạn · "
+                                            : ""}
                                         {filtered.length} kết quả{" "}
                                         {query ? "phù hợp" : "trong hệ thống"}
                                     </p>
