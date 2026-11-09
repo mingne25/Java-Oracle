@@ -7,7 +7,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import vn.edu.qlsv.config.SecurityConfig;
+import vn.edu.qlsv.model.Classroom;
 import vn.edu.qlsv.model.Faculty;
+import vn.edu.qlsv.model.Student;
+import vn.edu.qlsv.model.StudentStatus;
 import vn.edu.qlsv.model.Teacher;
 import vn.edu.qlsv.model.UserAccount;
 import vn.edu.qlsv.repository.*;
@@ -73,6 +76,41 @@ class CatalogAccessTest {
                 .andExpect(jsonPath("$[1].id").value(2));
 
         verify(teachers).findAll();
+    }
+
+    @Test
+    void teacherCanOnlyReadStudentsInAssignedClasses() throws Exception {
+        UserAccount account = new UserAccount();
+        account.username = "teacher01";
+        account.teacher = teacher(7L, faculty(12L));
+        when(users.findByUsername("teacher01")).thenReturn(Optional.of(account));
+        when(students.findByClassroom_Teacher_Id(7L)).thenReturn(List.of(student(21L, 7L)));
+        when(students.findById(22L)).thenReturn(Optional.of(student(22L, 8L)));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/catalog/students").with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(21))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/catalog/students/22").with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isNotFound());
+
+        verify(students).findByClassroom_Teacher_Id(7L);
+    }
+
+    private Student student(Long id, Long assignedTeacherId) {
+        Classroom classroom = new Classroom();
+        classroom.id = id + 100;
+        classroom.name = "Class " + classroom.id;
+        classroom.teacher = teacher(assignedTeacherId, faculty(12L));
+        Student student = new Student();
+        student.id = id;
+        student.code = "SV" + id;
+        student.fullName = "Student " + id;
+        student.status = StudentStatus.STUDYING;
+        student.classroom = classroom;
+        return student;
     }
 
     private Faculty faculty(Long id) {
