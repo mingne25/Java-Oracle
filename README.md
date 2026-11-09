@@ -45,7 +45,7 @@ Khóa học → Khoa → Giảng viên → Lớp (chọn giảng viên cùng kho
 ## API
 - `GET /api/health` (public)
 - `GET /api/me` (đăng nhập)
-- `GET /api/catalog/{years|faculties|classes|subjects|teachers|students}` (Admin/Giảng viên; Giảng viên bị giới hạn sinh viên và giảng viên theo khoa)
+- `GET /api/catalog/{years|faculties|classes|subjects|teachers|students}` (Admin/Giảng viên; Giảng viên xem học sinh trong các lớp được phân công và giảng viên trong khoa)
 - `POST/PUT/DELETE /api/catalog/{type}` (Admin)
 - `GET /api/admin/stats`, `POST /api/admin/users` (Admin)
 - `GET /api/teacher/profile` (Teacher), `GET /api/student/profile` (Student)
