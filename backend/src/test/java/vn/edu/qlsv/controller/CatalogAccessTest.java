@@ -99,6 +99,30 @@ class CatalogAccessTest {
         verify(students).findByClassroom_Teacher_Id(7L);
     }
 
+    @Test
+    void adminCanAssignOnlyATeacherFromTheClassFaculty() throws Exception {
+        when(faculties.findById(12L)).thenReturn(Optional.of(faculty(12L)));
+        when(teachers.findById(31L)).thenReturn(Optional.of(teacher(31L, faculty(12L))));
+        when(teachers.findById(32L)).thenReturn(Optional.of(teacher(32L, faculty(34L))));
+        when(classes.save(any(Classroom.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/catalog/classes")
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"C1\",\"name\":\"Class 1\",\"facultyId\":12,\"teacherId\":31}"))
+                .andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/catalog/classes")
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"C2\",\"name\":\"Class 2\",\"facultyId\":12,\"teacherId\":32}"))
+                .andExpect(status().isBadRequest());
+
+        verify(classes).save(argThat(classroom -> classroom.teacher.id.equals(31L)));
+        verify(classes, times(1)).save(any(Classroom.class));
+    }
+
     private Student student(Long id, Long assignedTeacherId) {
         Classroom classroom = new Classroom();
         classroom.id = id + 100;
