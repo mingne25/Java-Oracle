@@ -1,6 +1,7 @@
 import { statusLabels } from "./labels";
 
 export type Item = Record<string, any>;
+export type Field = [string, string, string?];
 export { statusLabels };
 
 export const btn =
