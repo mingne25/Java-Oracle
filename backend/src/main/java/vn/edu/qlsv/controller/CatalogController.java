@@ -21,9 +21,12 @@ public class CatalogController {
     private final TeacherRepository teachers;
     private final StudentRepository students;
     private final UserAccountRepository users;
+    private final ClassroomSubjectRepository classroomSubjects;
+    private final StudentSubjectRepository studentSubjects;
 
     public CatalogController(CourseYearRepository y, FacultyRepository f, ClassroomRepository c, SubjectRepository s,
-            TeacherRepository t, StudentRepository st, UserAccountRepository u) {
+            TeacherRepository t, StudentRepository st, UserAccountRepository u,
+            ClassroomSubjectRepository cs, StudentSubjectRepository ss) {
         years = y;
         faculties = f;
         classes = c;
@@ -31,6 +34,8 @@ public class CatalogController {
         teachers = t;
         students = st;
         users = u;
+        classroomSubjects = cs;
+        studentSubjects = ss;
     }
 
     private JpaRepository<?, Long> repository(String type) {
@@ -41,6 +46,8 @@ public class CatalogController {
             case "subjects" -> subjects;
             case "teachers" -> teachers;
             case "students" -> students;
+            case "class-subjects" -> classroomSubjects;
+            case "student-subjects" -> studentSubjects;
             default -> throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         };
     }
@@ -56,6 +63,19 @@ public class CatalogController {
 
     record ClassroomSummary(Long id, String code, String name, FacultySummary faculty, TeacherSummary teacher,
             Integer maxStudents) {
+    }
+
+    record SubjectSummary(Long id, String code, String name, FacultySummary faculty) {
+    }
+
+    record ClassroomSubjectSummary(Long id, Long classroomId, ClassroomSummary classroom,
+            Long subjectId, SubjectSummary subject, Long teacherId, TeacherSummary teacher,
+            String code, String name) {
+    }
+
+    record StudentSubjectSummary(Long id, Long studentId, StudentSummary student,
+            Long classSubjectId, ClassroomSubjectSummary classSubject,
+            String code, String name, String classroomName, String teacherName) {
     }
 
     private boolean isAdmin(Authentication auth) {
@@ -101,8 +121,42 @@ public class CatalogController {
                 classroom.maxStudents);
     }
 
+    private SubjectSummary subjectSummary(Subject subject) {
+        FacultySummary faculty = subject.faculty == null
+                ? null
+                : new FacultySummary(subject.faculty.id, subject.faculty.name);
+        return new SubjectSummary(subject.id, subject.code, subject.name, faculty);
+    }
+
+    private ClassroomSubjectSummary classroomSubjectSummary(ClassroomSubject offering) {
+        ClassroomSummary classroom = classSummary(offering.classroom);
+        SubjectSummary subject = subjectSummary(offering.subject);
+        TeacherSummary teacher = offering.teacher == null
+                ? null
+                : new TeacherSummary(offering.teacher.id, offering.teacher.code, offering.teacher.fullName);
+        return new ClassroomSubjectSummary(offering.id, offering.classroom.id, classroom,
+                offering.subject.id, subject, offering.teacher.id, teacher,
+                offering.classroom.code + " / " + offering.subject.code,
+                offering.classroom.name + " · " + offering.subject.name);
+    }
+
+    private StudentSubjectSummary studentSubjectSummary(StudentSubject enrollment) {
+        StudentSummary student = summary(enrollment.student);
+        ClassroomSubjectSummary offering = classroomSubjectSummary(enrollment.classroomSubject);
+        return new StudentSubjectSummary(enrollment.id, enrollment.student.id, student,
+                enrollment.classroomSubject.id, offering,
+                enrollment.student.code,
+                enrollment.student.fullName + " · " + enrollment.classroomSubject.subject.name,
+                enrollment.classroomSubject.classroom.name,
+                enrollment.classroomSubject.teacher.fullName);
+    }
+
     @GetMapping("/{type}")
     public Object list(@PathVariable String type, Authentication auth) {
+        if (type.equals("class-subjects"))
+            return classroomSubjects.findAll().stream().map(this::classroomSubjectSummary).toList();
+        if (type.equals("student-subjects"))
+            return studentSubjects.findAll().stream().map(this::studentSubjectSummary).toList();
         if (type.equals("classes")) {
             List<Classroom> visibleClasses = isTeacher(auth)
                     ? classes.findByTeacher_Id(teacherId(auth))
@@ -120,6 +174,12 @@ public class CatalogController {
 
     @GetMapping("/{type}/{id}")
     public Object one(@PathVariable String type, @PathVariable Long id, Authentication auth) {
+        if (type.equals("class-subjects"))
+            return classroomSubjectSummary(classroomSubjects.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+        if (type.equals("student-subjects"))
+            return studentSubjectSummary(studentSubjects.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
         if (type.equals("classes") && isTeacher(auth)) {
             Long teacherId = teacherId(auth);
             Classroom classroom = classes.findById(id)
@@ -272,6 +332,9 @@ public class CatalogController {
                 nonblank(x.code, "code");
                 nonblank(x.name, "name");
                 Faculty faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
+                if (id != null && x.faculty != null && !x.faculty.id.equals(faculty.id)
+                        && (students.existsByClassroom_Id(x.id) || classroomSubjects.existsByClassroom_Id(x.id)))
+                    throw badInput("Move students and remove class subject offerings before changing the classroom faculty");
                 Teacher teacher = required(teachers.findById(requiredNumber(d, "teacherId")));
                 if (teacher.faculty == null || !teacher.faculty.id.equals(faculty.id))
                     throw badInput("Teacher must belong to the classroom faculty");
@@ -286,7 +349,11 @@ public class CatalogController {
                 x.name = str(d, "name");
                 nonblank(x.code, "code");
                 nonblank(x.name, "name");
-                x.faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
+                Faculty faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
+                if (id != null && x.faculty != null && !x.faculty.id.equals(faculty.id)
+                        && classroomSubjects.existsBySubject_Id(x.id))
+                    throw badInput("Remove this subject from classrooms before changing its faculty");
+                x.faculty = faculty;
                 return subjects.save(x);
             }
             case "teachers": {
@@ -296,8 +363,51 @@ public class CatalogController {
                 x.email = str(d, "email");
                 nonblank(x.code, "code");
                 nonblank(x.fullName, "fullName");
-                x.faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
+                Faculty faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
+                if (id != null && x.faculty != null && !x.faculty.id.equals(faculty.id)
+                        && (classroomSubjects.existsByTeacher_Id(x.id) || !classes.findByTeacher_Id(x.id).isEmpty()))
+                    throw badInput("Unassign this teacher from classes and subjects before changing their faculty");
+                x.faculty = faculty;
                 return teachers.save(x);
+            }
+            case "class-subjects": {
+                ClassroomSubject x = id == null ? new ClassroomSubject()
+                        : required(classroomSubjects.findById(id));
+                Classroom classroom = required(classes.findById(requiredNumber(d, "classroomId")));
+                Subject subject = required(subjects.findById(requiredNumber(d, "subjectId")));
+                Teacher teacher = required(teachers.findById(requiredNumber(d, "teacherId")));
+                if (id != null && (!x.classroom.id.equals(classroom.id) || !x.subject.id.equals(subject.id))
+                        && studentSubjects.existsByClassroomSubject_Id(x.id))
+                    throw badInput("Remove student registrations before changing the classroom or subject for this offering");
+                if (!classroom.faculty.id.equals(subject.faculty.id))
+                    throw badInput("Subject must belong to the classroom faculty");
+                if (teacher.faculty == null || !teacher.faculty.id.equals(classroom.faculty.id))
+                    throw badInput("Teacher must belong to the classroom faculty");
+                Optional<ClassroomSubject> duplicate = classroomSubjects
+                        .findByClassroom_IdAndSubject_Id(classroom.id, subject.id);
+                if (duplicate.isPresent() && !duplicate.get().id.equals(x.id))
+                    throw badInput("This subject is already assigned to the classroom");
+                x.classroom = classroom;
+                x.subject = subject;
+                x.teacher = teacher;
+                return classroomSubjectSummary(classroomSubjects.saveAndFlush(x));
+            }
+            case "student-subjects": {
+                StudentSubject x = id == null ? new StudentSubject()
+                        : required(studentSubjects.findById(id));
+                Student student = required(students.findById(requiredNumber(d, "studentId")));
+                ClassroomSubject offering = required(classroomSubjects
+                        .findById(requiredNumber(d, "classSubjectId")));
+                if (student.classroom == null || !student.classroom.id.equals(offering.classroom.id))
+                    throw badInput("Student must belong to the classroom offering this subject");
+                Optional<StudentSubject> duplicate = studentSubjects
+                        .findByStudent_IdAndClassroomSubject_Id(student.id, offering.id);
+                if (duplicate.isPresent() && !duplicate.get().id.equals(x.id))
+                    throw badInput("Student is already enrolled in this subject");
+                x.student = student;
+                x.classroomSubject = offering;
+                x.classroomId = offering.classroom.id;
+                return studentSubjectSummary(studentSubjects.saveAndFlush(x));
             }
             case "students": {
                 Student x = id == null ? new Student() : required(students.findById(id));
@@ -322,6 +432,9 @@ public class CatalogController {
                             && (previousStatus == null || !isOccupying(previousStatus));
                     if (isOccupying(x.status) && (moving || reactivating))
                         capacity(c, id);
+                    if (moving && id != null && studentSubjects.existsByStudent_Id(id))
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Remove the student's subject registrations before transferring them to another classroom");
                     if (x.classroom != null && !x.classroom.faculty.id.equals(c.faculty.id))
                         throw new ResponseStatusException(HttpStatus.CONFLICT,
                                 "Cross-faculty transfer is not permitted");
@@ -338,9 +451,12 @@ public class CatalogController {
         return switch (type) {
             case "years" -> "Không thể xóa khóa học vì đang có khoa liên kết. Hãy chuyển hoặc xóa các khoa liên quan trước.";
             case "faculties" -> "Không thể xóa khoa vì đang có lớp, môn học hoặc giảng viên thuộc khoa. Hãy chuyển hoặc xóa dữ liệu liên quan trước.";
-            case "classes" -> "Không thể xóa lớp vì đang có sinh viên thuộc lớp. Hãy chuyển sinh viên sang lớp khác trước.";
-            case "teachers" -> "Không thể xóa giảng viên vì đang phụ trách lớp hoặc có tài khoản liên kết. Hãy gỡ các liên kết này trước.";
-            case "students" -> "Không thể xóa sinh viên vì đang có tài khoản liên kết. Hãy gỡ liên kết tài khoản trước.";
+            case "classes" -> "Không thể xóa lớp vì đang có sinh viên hoặc môn học được mở cho lớp. Hãy gỡ các liên kết trước.";
+            case "subjects" -> "Không thể xóa môn học vì đang được mở cho một hoặc nhiều lớp. Hãy xóa các lớp–môn liên quan trước.";
+            case "class-subjects" -> "Không thể xóa môn học của lớp vì sinh viên đã đăng ký. Hãy xóa các đăng ký sinh viên trước.";
+            case "student-subjects" -> "Không thể xóa đăng ký môn học.";
+            case "teachers" -> "Không thể xóa giảng viên vì đang phụ trách lớp, dạy môn trong lớp hoặc có tài khoản liên kết. Hãy gỡ các liên kết này trước.";
+            case "students" -> "Không thể xóa sinh viên vì đang có tài khoản hoặc đăng ký môn học liên kết. Hãy gỡ các liên kết trước.";
             default -> "Không thể xóa bản ghi vì dữ liệu khác đang tham chiếu đến bản ghi này. Hãy gỡ các liên kết trước.";
         };
     }
