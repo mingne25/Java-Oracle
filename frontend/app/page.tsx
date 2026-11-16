@@ -1,4 +1,9 @@
 "use client";
+
+import { Login } from "./components/auth/Login";
+import { ProfilePanel } from "./components/profile/ProfilePanel";
+import { genderCode, genderLabels, roleLabels } from "./components/ui/labels";
+import { type Item, Initials, Status, btn, panel, shortName, statusLabels } from "./components/ui/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Activity,
@@ -45,7 +50,6 @@ import {
     AlertCircle,
 } from "lucide-react";
 
-type Item = Record<string, any>;
 type Field = [string, string, string?];
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 const STUDENT_PAGE_SIZE = 25;
@@ -96,21 +100,6 @@ const specs: Record<string, Field[]> = {
         ["classroomId", "Lớp học", "classes"],
     ],
 };
-const statusLabels: Record<string, string> = {
-    STUDYING: "Đang học",
-    SUSPENDED: "Tạm dừng",
-    RESERVED: "Bảo lưu",
-    GRADUATED: "Tốt nghiệp",
-    DROPPED_OUT: "Thôi học",
-    EXPELLED: "Buộc thôi học",
-};
-const genderLabels: Record<string, string> = { MALE: "Nam", FEMALE: "Nữ", OTHER: "Khác", Nam: "Nam", "Nữ": "Nữ", "Khác": "Khác" };
-const genderCode: Record<string, string> = { Nam: "MALE", "Nữ": "FEMALE", "Khác": "OTHER" };
-const roleLabels: Record<string, string> = {
-    ADMIN: "Quản trị viên",
-    TEACHER: "Giảng viên",
-    STUDENT: "Sinh viên",
-};
 const icons: Record<string, any> = {
     dashboard: LayoutDashboard,
     students: GraduationCap,
@@ -148,250 +137,6 @@ async function request(path: string, init: RequestInit = {}) {
         throw Error(detail || `Yêu cầu thất bại (HTTP ${r.status}).`);
     }
     return r.status === 204 ? null : r.json();
-}
-const btn =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200";
-const panel = "glass rounded-[22px]";
-const shortName = (x: Item) => x.name || x.fullName || "—";
-function Initials({
-    name,
-    size = "md",
-}: {
-    name: string;
-    size?: "sm" | "md" | "lg";
-}) {
-    return (
-        <span
-            className={`inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/35 to-teal-500/25 font-bold text-emerald-100 ring-1 ring-emerald-300/20 ${size === "lg" ? "h-14 w-14 text-xl" : size === "sm" ? "h-9 w-9 text-xs" : "h-11 w-11 text-sm"}`}
-        >
-            {name
-                .trim()
-                .split(/\s+/)
-                .slice(-2)
-                .map((s) => s[0]?.toUpperCase())
-                .join("") || "U"}
-        </span>
-    );
-}
-function Status({ value }: { value: string }) {
-    const good = value === "STUDYING" || value === "ACTIVE";
-    const mid = value === "RESERVED" || value === "SUSPENDED";
-    return (
-        <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${good ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : mid ? "border-amber-500/20 bg-amber-500/10 text-amber-300" : "border-slate-500/25 bg-slate-500/10 text-slate-700"}`}
-        >
-            <span
-                className={`h-1.5 w-1.5 rounded-full ${good ? "bg-emerald-400" : mid ? "bg-amber-400" : "bg-slate-400"}`}
-            />
-            {statusLabels[value] || value}
-        </span>
-    );
-}
-function Login({
-    onLogin,
-    error,
-    loading,
-}: {
-    onLogin: (u: string, p: string) => Promise<void>;
-    error: string;
-    loading: boolean;
-}) {
-    const [u, setU] = useState(""),
-        [p, setP] = useState(""),
-        [show, setShow] = useState(false);
-    return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4faf6] px-5 py-10">
-            <div className="orb left-[-120px] top-[-140px] h-[500px] w-[500px] bg-emerald-500" />
-            <div className="orb bottom-[-160px] right-[-120px] h-[550px] w-[550px] bg-lime-400" />
-            <div className="ambient-grid absolute inset-0" />
-            <div className="relative grid w-full max-w-[1020px] overflow-hidden rounded-[32px] border border-emerald-900/10 bg-white/95 shadow-[0_40px_140px_#0008] lg:grid-cols-2">
-                <div
-                    data-emerald-hero="true"
-                    className="relative hidden min-h-[620px] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#064e3b] via-[#047857] to-[#16a34a] p-11 lg:flex"
-                >
-                    <div className="absolute -right-20 top-32 h-80 w-80 rounded-full border border-white/20" />
-                    <div className="absolute -right-3 top-44 h-56 w-56 rounded-full border border-white/20" />
-                    <div className="absolute bottom-24 left-[-90px] h-72 w-72 rounded-full bg-lime-200/20 blur-3xl" />
-                    <div className="relative flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20">
-                            <GraduationCap size={27} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-black tracking-tight">
-                                Campus<span className="text-lime-300">.</span>
-                            </p>
-                            <p className="text-[10px] uppercase tracking-[.3em] text-white/65">
-                                Smart student management
-                            </p>
-                        </div>
-                    </div>
-                    <div className="relative">
-                        <div className="mb-7 flex h-20 w-20 items-center justify-center rounded-[25px] border border-white/30 bg-white/10 shadow-2xl backdrop-blur-xl">
-                            <Sparkles size={42} className="text-lime-200" />
-                        </div>
-                        <h1 className="text-[48px] font-black leading-[1.08] tracking-tight">
-                            Quản lý giáo dục.
-                            <br />
-                            <span className="text-lime-200">Tương lai số.</span>
-                        </h1>
-                        <p className="mt-6 max-w-[330px] text-sm leading-7 text-emerald-100/80">
-                            Một không gian thống nhất cho quản trị, giảng viên và sinh viên.
-                            Mọi dữ liệu, mọi trải nghiệm — kết nối liền mạch.
-                        </p>
-                        <div className="mt-9 flex items-center gap-3">
-                            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs">
-                                Spring Boot
-                            </span>
-                            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs">
-                                Next.js
-                            </span>
-                            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs">
-                                Oracle 26ai
-                            </span>
-                        </div>
-                    </div>
-                    <p className="relative text-xs text-white/55">
-                        © 2026 Emerald Campus · Student Management Platform
-                    </p>
-                </div>
-                <div className="flex flex-col justify-center p-7 sm:p-12 lg:p-14">
-                    <div className="mb-9 flex items-center gap-2 lg:hidden">
-                        <GraduationCap className="text-green-400" />
-                        <span className="text-xl font-black">Emerald Campus.</span>
-                    </div>
-                    <div className="mb-8">
-                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1.5 text-xs font-semibold text-green-300">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                            CỔNG THÔNG TIN ĐIỆN TỬ
-                        </div>
-                        <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-                            Chào mừng trở lại <span className="inline-block">👋</span>
-                        </h2>
-                        <p className="mt-3 text-sm text-slate-500">
-                            Đăng nhập để truy cập không gian quản lý của bạn.
-                        </p>
-                    </div>
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            void onLogin(u, p);
-                        }}
-                        className="space-y-5"
-                    >
-                        <label className="block">
-                            <span className="mb-2 block text-xs font-semibold text-slate-700">
-                                Tên đăng nhập
-                            </span>
-                            {/* <div className="relative">
-                                <UserRound
-                                    size={18}
-                                    className="absolute left-4 top-3.5 text-slate-500"
-                                />
-                                <input
-                                    className="soft-input pl-12"
-                                    autoComplete="username"
-                                    placeholder="Nhập tên đăng nhập"
-                                    value={u}
-                                    onChange={(e) => setU(e.target.value)}
-                                    required
-                                />
-                            </div> */}
-                            <div className="flex w-full items-center gap-3 rounded-xl border border-green-200 bg-white px-4 py-3 transition-all focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-100">
-                                <UserRound
-                                    size={18}
-                                    className="shrink-0 text-slate-500"
-                                />
-
-                                <input
-                                    type="text"
-                                    className="min-w-0 flex-1 border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-                                    autoComplete="username"
-                                    placeholder="Nhập tên đăng nhập"
-                                    value={u}
-                                    onChange={(e) => setU(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        </label>
-                        <label className="block">
-                            <span className="mb-2 block text-xs font-semibold text-slate-700">
-                                Mật khẩu
-                            </span>
-                            {/* <div className="relative">
-                                <LockKeyhole
-                                    size={18}
-                                    className="absolute left-4 top-3.5 text-slate-500"
-                                />
-                                <input
-                                    className="soft-input pl-12 pr-12"
-                                    type={show ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    placeholder="Nhập mật khẩu"
-                                    value={p}
-                                    onChange={(e) => setP(e.target.value)}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                                    onClick={() => setShow(!show)}
-                                    className="absolute right-4 top-3.5 text-slate-500 hover:text-white"
-                                >
-                                    {show ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div> */}
-                            <div className="flex w-full items-center gap-3 rounded-xl border border-green-200 bg-white px-4 py-3 transition-all focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-100">
-                                <LockKeyhole
-                                    size={18}
-                                    className="shrink-0 text-slate-500"
-                                />
-
-                                <input
-                                    className="min-w-0 flex-1 border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-                                    type={show ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    placeholder="Nhập mật khẩu"
-                                    value={p}
-                                    onChange={(e) => setP(e.target.value)}
-                                    required
-                                />
-
-                                <button
-                                    type="button"
-                                    aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                                    aria-pressed={show}
-                                    onClick={() => setShow(!show)}
-                                    className="flex shrink-0 items-center justify-center text-slate-500 transition-colors hover:text-green-600"
-                                >
-                                    {show ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                        </label>
-                        {error && (
-                            <div
-                                role="alert"
-                                className="flex items-start gap-2 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-300"
-                            >
-                                <AlertCircle size={18} className="shrink-0" />
-                                {error}
-                            </div>
-                        )}
-                        <button
-                            disabled={loading}
-                            className={`${btn} gradient-button mt-2 w-full py-3.5 text-white`}
-                        >
-                            {loading ? "Đang xác thực..." : "Đăng nhập hệ thống"}
-                            <ArrowRight size={18} />
-                        </button>
-                    </form>
-                    <div className="mt-10 flex items-center justify-center gap-2 text-xs text-slate-500">
-                        <ShieldCheck size={15} className="text-emerald-400" /> Kết nối được
-                        bảo vệ · Phân quyền theo vai trò
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
 }
 export default function Page() {
     const [user, setUser] = useState<Item | null>(null),
@@ -1313,74 +1058,7 @@ export default function Page() {
                         </section>
                     )}
                     {tab === "profile" && (
-                        <section className={`${panel} mx-auto w-full max-w-[980px] overflow-hidden rounded-[22px] border border-emerald-900/10 bg-white shadow-[0_18px_50px_rgba(13,87,52,.07)]`}>
-                            <div className="h-2 bg-gradient-to-r from-[#0f6b50] via-[#138a64] to-[#38b982]" />
-                            <div className="p-5 sm:p-8">
-                                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex min-w-0 items-center gap-4">
-                                        <div className="grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[20px] bg-[#eaf7f1] ring-1 ring-[#d4eee0]">
-                                            <Initials name={profile?.fullName || user.username} size="lg" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#138a64]">Hồ sơ cá nhân</p>
-                                            <h2 className="mt-1 break-words text-xl font-bold tracking-tight text-[#18352b] sm:text-2xl">
-                                                {profile?.fullName || user.username}
-                                            </h2>
-                                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                <span className="rounded-full bg-[#eaf7f1] px-3 py-1 text-[11px] font-semibold text-[#0f6b50]">
-                                                    {roleLabels[user.role]}
-                                                </span>
-                                                {profile?.code && (
-                                                    <span className="text-xs font-medium text-[#74867f]">{profile.code}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="inline-flex items-center gap-2 self-start rounded-full border border-[#d4eee0] bg-[#f4fbf7] px-3 py-2 text-[11px] font-medium text-[#247455] sm:self-center">
-                                        <span className={`h-2 w-2 rounded-full ${profile ? "bg-[#138a64]" : "animate-pulse bg-amber-400"}`} />
-                                        {profile ? "Hồ sơ đã đồng bộ" : error ? "Không tải được hồ sơ" : "Đang tải hồ sơ"}
-                                    </div>
-                                </div>
-
-                                <div className="my-6 h-px bg-[#e5eee9]" />
-
-                                <div className="mb-4">
-                                    <h3 className="text-sm font-bold text-[#18352b]">Thông tin chi tiết</h3>
-                                    <p className="mt-1 text-xs text-[#74867f]">Thông tin cá nhân và học vụ được đồng bộ từ hệ thống.</p>
-                                </div>
-
-                                {profile ? (
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {[
-                                            { label: "Mã định danh", value: profile.code, icon: Hash },
-                                            { label: "Email", value: profile.email, icon: Mail },
-                                            { label: "Số điện thoại", value: profile.phone, icon: Phone },
-                                            { label: "Giới tính", value: genderLabels[profile.gender] || profile.gender, icon: UserRound },
-                                            { label: "Trạng thái", value: statusLabels[profile.status] || profile.status, icon: CheckCircle2 },
-                                            { label: "Lớp / Khoa", value: profile.classroom?.name || profile.faculty?.name, icon: Building2 },
-                                        ]
-                                            .filter((item) => item.value != null && item.value !== "")
-                                            .map(({ label, value, icon: Icon }) => (
-                                                <div key={label} className="min-w-0 rounded-xl border border-[#e5eee9] bg-[#f8fcf9] p-4 transition hover:border-[#b7e2ce] hover:bg-[#f3faf6]">
-                                                    <div className="mb-3 flex items-center gap-2 text-[#138a64]">
-                                                        <Icon size={16} />
-                                                        <p className="text-[11px] font-medium text-[#74867f]">{label}</p>
-                                                    </div>
-                                                    <p className="break-words text-sm font-semibold text-[#18352b]">{String(value)}</p>
-                                                </div>
-                                            ))}
-                                    </div>
-                                ) : (
-                                    <div className="rounded-xl border border-dashed border-[#cfe8d8] bg-[#f8fcf9] px-5 py-8 text-center">
-                                        <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-[#eaf7f1] text-[#138a64]">
-                                            <UserRound size={20} />
-                                        </div>
-                                        <p className="text-sm font-semibold text-[#18352b]">Chưa tải được hồ sơ</p>
-                                        <p className="mt-1 text-xs text-[#74867f]">Vui lòng thử tải lại trang hoặc liên hệ quản trị viên nếu thông tin chưa được liên kết.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
+                        <ProfilePanel profile={profile} user={user} error={error} />
                     )}
                     <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-emerald-900/10 pt-5 text-[11px] text-slate-600">
                         <span>© 2026 Emerald Campus · Student Management System</span>
