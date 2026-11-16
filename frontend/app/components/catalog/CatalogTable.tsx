@@ -2,7 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { AlertCircle, Edit3, RefreshCw, Search, Trash2, UserRoundPlus } from "lucide-react";
-import { Initials, Status, type Item, shortName } from "../ui/shared";
+import { Initials, Status, panel, type Item, shortName } from "../ui/shared";
 
 type CatalogTableProps = {
     tab: string;
