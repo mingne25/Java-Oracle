@@ -65,6 +65,8 @@ const tabs = [
     ["subjects", "Môn học"],
     ["teachers", "Giảng viên"],
     ["students", "Sinh viên"],
+    ["class-subjects", "Môn học theo lớp"],
+    ["student-subjects", "Đăng ký môn học"],
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
@@ -94,6 +96,15 @@ const specs: Record<string, Field[]> = {
         ["email", "Email", "email"],
         ["facultyId", "Khoa", "faculties"],
     ],
+    "class-subjects": [
+        ["classroomId", "Lớp học", "classes"],
+        ["subjectId", "Môn học", "subjects"],
+        ["teacherId", "Giảng viên phụ trách", "teachers"],
+    ],
+    "student-subjects": [
+        ["classSubjectId", "Lớp / môn học", "class-subjects"],
+        ["studentId", "Sinh viên", "students"],
+    ],
     students: [
         ["code", "Mã sinh viên"],
         ["fullName", "Họ và tên"],
@@ -113,6 +124,8 @@ const icons: Record<string, any> = {
     faculties: Building2,
     years: CalendarDays,
     subjects: BookOpen,
+    "class-subjects": BookOpen,
+    "student-subjects": ClipboardList,
     accounts: ShieldCheck,
     profile: UserRound,
 };
@@ -180,7 +193,7 @@ export default function Page() {
         }
         setError("");
         try {
-            const keys = ["years", "faculties", "classes", "students", "teachers"];
+            const keys = ["years", "faculties", "classes", "students", "teachers", "subjects", "class-subjects", "student-subjects"];
             const required = role === "ADMIN"
                 ? keys
                 : role === "TEACHER" && current === "dashboard"
@@ -277,7 +290,7 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects"]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile"]
                 : ["profile"];
@@ -355,7 +368,7 @@ export default function Page() {
     function edit(x: Item) {
         setEditing(x.id);
         const d = { ...x };
-        for (const k of ["courseYear", "faculty", "classroom", "teacher"])
+        for (const k of ["courseYear", "faculty", "classroom", "teacher", "subject", "classSubject"])
             if (x[k]) d[k + "Id"] = x[k].id;
         if (d.gender) d.gender = genderCode[d.gender] || d.gender;
         setForm(d);
@@ -391,6 +404,11 @@ export default function Page() {
                     x.classroom?.name,
                     x.faculty?.name,
                     x.teacher?.fullName,
+                    x.subject?.name,
+                    x.classSubject?.subject?.name,
+                    x.student?.fullName,
+                    x.classSubject?.classroom?.name,
+                    x.classSubject?.teacher?.fullName,
                 ].some((v) =>
                     String(v || "")
                         .toLocaleLowerCase("vi")
@@ -420,7 +438,7 @@ export default function Page() {
             { label: "Khóa học", value: stats.years ?? "—", icon: CalendarDays },
         ];
     const dashboardActions = user?.role === "ADMIN"
-        ? ["students", "classes", "teachers", "subjects"]
+        ? ["students", "classes", "teachers", "subjects", "class-subjects", "student-subjects"]
         : ["students", "teachers", "profile"];
     const classDistribution = Object.entries(
         (lookup.students || []).reduce((counts: Record<string, number>, student: Item) => {
@@ -440,6 +458,8 @@ export default function Page() {
                 "subjects",
                 "years",
                 "accounts",
+                "class-subjects",
+                "student-subjects",
             ]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile"]

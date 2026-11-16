@@ -13,7 +13,8 @@ Dự án **mới**, dựa trên nghiệp vụ trong `phan_tich_nghiep_vu_quan_ly
 3. Tạo kết nối SQL Developer mới bằng user `QLSV` tới `FREEPDB1`.
 4. Chạy `database/01_schema.sql` **một lần** trong schema trống QLSV. Đừng chạy lại nếu các bảng đã có.
 5. Với schema QLSV hiện có, chạy một lần `database/03_classroom_teacher_assignment.sql` để thêm phân công giảng viên cho lớp.
-6. Kiểm tra `SELECT TABLE_NAME FROM USER_TABLES;`.
+6. Với schema đã có, chạy `database/04_subject_enrollments.sql` một lần để thêm liên kết lớp–môn–giảng viên và đăng ký môn của sinh viên. Schema mới đã có sẵn các bảng này trong `01_schema.sql`.
+7. Kiểm tra `SELECT TABLE_NAME FROM USER_TABLES;`.
 
 ## Backend (PowerShell)
 ```powershell
@@ -34,10 +35,10 @@ npm run dev
 Truy cập `http://localhost:3000`, đăng nhập Admin từ biến môi trường ở trên.
 
 ## Thứ tự nhập dữ liệu
-Khóa học → Khoa → Giảng viên → Lớp (chọn giảng viên cùng khoa) → Môn học / Sinh viên → Tạo tài khoản giảng viên và sinh viên.
+Khóa học → Khoa → Giảng viên / Môn học → Lớp → Phân công môn và giảng viên cho lớp → Xếp sinh viên vào lớp → Đăng ký sinh viên vào các môn của lớp → Tạo tài khoản.
 
 ## Quyền
-- `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; phân công một giảng viên cùng khoa cho mỗi lớp; tạo tài khoản Teacher/Student; dashboard.
+- `ADMIN`: CRUD khóa, khoa, lớp, môn, giảng viên, sinh viên; phân công một giảng viên cùng khoa phụ trách lớp và phân công giảng viên cùng khoa dạy từng môn trong lớp; quản lý sinh viên đăng ký các môn được mở cho lớp; tạo tài khoản Teacher/Student; dashboard.
 - `TEACHER`: xem giảng viên cùng khoa, học sinh và lớp được phân công, cùng hồ sơ cá nhân; danh sách học sinh phân trang 25 bản ghi mỗi trang. Không được xem danh mục khóa học, khoa hoặc môn học.
 - `STUDENT`: chỉ xem hồ sơ cá nhân; không truy cập API danh mục.
 - Không có đăng ký tài khoản công khai, không tạo thêm admin qua API.
@@ -48,7 +49,8 @@ Khóa học → Khoa → Giảng viên → Lớp (chọn giảng viên cùng kho
 - `GET /api/catalog/students` (Admin/Giảng viên; Teacher chỉ xem học sinh trong lớp được phân công)
 - `GET /api/catalog/teachers` (Admin/Giảng viên; Teacher chỉ xem giảng viên cùng khoa)
 - `GET /api/catalog/classes` (Admin/Giảng viên; Teacher chỉ xem lớp được phân công)
-- `GET /api/catalog/{years|faculties|subjects}` (chỉ Admin)
+- `GET /api/catalog/{years|faculties|subjects|class-subjects|student-subjects}` (chỉ Admin)
+- `POST/PUT/DELETE /api/catalog/{class-subjects|student-subjects}` (Admin). Lớp–môn liên kết giảng viên dạy; đăng ký sinh viên chỉ hợp lệ với môn được mở cho đúng lớp của sinh viên.
 - `POST/PUT/DELETE /api/catalog/{type}` (Admin)
 - `GET /api/admin/stats`, `POST /api/admin/users` (Admin)
 - `GET /api/teacher/profile` (Teacher), `GET /api/student/profile` (Student)

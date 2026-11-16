@@ -194,6 +194,12 @@ export function EntityFormModal({ tab, title, editing, form, setForm, account, s
                                                 ...(tab === "classes" && key === "facultyId"
                                                     ? { teacherId: undefined }
                                                     : {}),
+                                                ...(tab === "class-subjects" && key === "classroomId"
+                                                    ? { subjectId: undefined, teacherId: undefined }
+                                                    : {}),
+                                                ...(tab === "student-subjects" && key === "classSubjectId"
+                                                    ? { studentId: undefined }
+                                                    : {}),
                                             });
                                         }}
                                     >
@@ -204,11 +210,24 @@ export function EntityFormModal({ tab, title, editing, form, setForm, account, s
                                                     : "Chọn khoa trước"
                                                 : "Chọn " + label.toLowerCase()}
                                         </option>
-                                        {(type === "teachers"
-                                            ? lookup[type].filter(
-                                                (x) => String(x.faculty?.id) === String(form.facultyId),
-                                            )
-                                            : lookup[type]
+                                        {(type === "teachers" && (tab === "classes" || tab === "class-subjects")
+                                            ? lookup[type].filter((x) => {
+                                                const selectedFacultyId = tab === "classes"
+                                                    ? form.facultyId
+                                                    : lookup.classes?.find((item) => String(item.id) === String(form.classroomId))?.faculty?.id;
+                                                return !selectedFacultyId || String(x.faculty?.id) === String(selectedFacultyId);
+                                            })
+                                            : type === "subjects" && tab === "class-subjects"
+                                                ? lookup[type].filter((x) => {
+                                                    const selectedFacultyId = lookup.classes?.find((item) => String(item.id) === String(form.classroomId))?.faculty?.id;
+                                                    return !selectedFacultyId || String(x.faculty?.id) === String(selectedFacultyId);
+                                                })
+                                                : type === "students" && tab === "student-subjects"
+                                                    ? lookup[type].filter((x) => {
+                                                        const selectedClassId = lookup["class-subjects"]?.find((item) => String(item.id) === String(form.classSubjectId))?.classroomId;
+                                                        return !selectedClassId || String(x.classroom?.id) === String(selectedClassId);
+                                                    })
+                                                    : lookup[type]
                                         ).map((x) => (
                                             <option key={x.id} value={x.id}>
                                                 {x.code} · {shortName(x)}
