@@ -456,8 +456,8 @@ export default function Page() {
         return <Login onLogin={login} error={loginError} loading={loading} />;
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#f4faf6] text-slate-900">
-            
-            
+
+
             {sidebar && (
                 <button
                     aria-label="Đóng menu"
