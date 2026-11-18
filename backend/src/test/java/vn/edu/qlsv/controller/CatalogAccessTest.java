@@ -41,6 +41,10 @@ class CatalogAccessTest {
     StudentRepository students;
     @MockBean
     UserAccountRepository users;
+    @MockBean
+    ClassroomSubjectRepository classroomSubjects;
+    @MockBean
+    StudentSubjectRepository studentSubjects;
 
     @Test
     void studentCannotReadTeacherCatalog() throws Exception {

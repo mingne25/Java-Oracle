@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import { AlertCircle, Edit3, RefreshCw, Search, Trash2, UserRoundPlus } from "lucide-react";
+import { AlertCircle, Edit3, RefreshCw, Search, Trash2, UserRoundPlus, ArrowRightLeft, LogIn } from "lucide-react";
 import { Initials, Status, panel, type Item, shortName } from "../ui/shared";
 
 type CatalogTableProps = {
@@ -22,9 +22,11 @@ type CatalogTableProps = {
     pageCount: number;
     studentPageSize: number;
     data: Item[];
+    onAssign?: (item: Item) => void;
+    onTransfer?: (item: Item) => void;
 };
 
-export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data }: CatalogTableProps) {
+export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data, onAssign, onTransfer }: CatalogTableProps) {
     return (
         <section className={`${panel} overflow-hidden`}>
             <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
@@ -123,29 +125,73 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                                 {user.role === "ADMIN" && (
                                     <td>
                                         <div className="flex justify-end gap-2">
-                                            <button
-                                                title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"}
-                                                aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
-                                                onClick={() => edit(x)}
-                                                className={`inline-flex items-center gap-2 rounded-lg border border-emerald-900/10 ${tab === "classes" ? "px-3 py-2" : "p-2"} text-emerald-300 hover:bg-emerald-500/15`}
-                                            >
-                                                {tab === "classes" ? (
-                                                    <>
-                                                        <UserRoundPlus size={16} />
-                                                        <span>Phân công</span>
-                                                    </>
-                                                ) : (
-                                                    <Edit3 size={16} />
-                                                )}
-                                            </button>
-                                            <button
-                                                title="Xóa"
-                                                aria-label={`Xóa ${shortName(x)}`}
-                                                onClick={() => void remove(x.id)}
-                                                className="rounded-lg border border-emerald-900/10 p-2 text-rose-300 hover:bg-rose-500/15"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {tab === "students" ? (
+                                                <>
+                                                    <button
+                                                        title="Chỉnh sửa thông tin"
+                                                        aria-label={`Sửa ${shortName(x)}`}
+                                                        onClick={() => edit(x)}
+                                                        className="p-2 rounded-lg border border-emerald-900/10 text-emerald-300 hover:bg-emerald-500/15"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
+                                                    {(!x.classroom && !x.classroomName) ? (
+                                                        <button
+                                                            title="Phân vào lớp"
+                                                            aria-label={`Phân lớp cho ${shortName(x)}`}
+                                                            onClick={() => onAssign?.(x)}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-900/10 px-2.5 py-2 text-xs text-sky-300 hover:bg-sky-500/15"
+                                                        >
+                                                            <LogIn size={15} />
+                                                            <span>Phân lớp</span>
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            title="Chuyển sang lớp khác"
+                                                            aria-label={`Chuyển lớp ${shortName(x)}`}
+                                                            onClick={() => onTransfer?.(x)}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-900/10 px-2.5 py-2 text-xs text-amber-300 hover:bg-amber-500/15"
+                                                        >
+                                                            <ArrowRightLeft size={15} />
+                                                            <span>Chuyển lớp</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        title="Xóa sinh viên"
+                                                        aria-label={`Xóa ${shortName(x)}`}
+                                                        onClick={() => void remove(x.id)}
+                                                        className="rounded-lg border border-emerald-900/10 p-2 text-rose-300 hover:bg-rose-500/15"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"}
+                                                        aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
+                                                        onClick={() => edit(x)}
+                                                        className={`inline-flex items-center gap-2 rounded-lg border border-emerald-900/10 ${tab === "classes" ? "px-3 py-2" : "p-2"} text-emerald-300 hover:bg-emerald-500/15`}
+                                                    >
+                                                        {tab === "classes" ? (
+                                                            <>
+                                                                <UserRoundPlus size={16} />
+                                                                <span>Phân công</span>
+                                                            </>
+                                                        ) : (
+                                                            <Edit3 size={16} />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        title="Xóa"
+                                                        aria-label={`Xóa ${shortName(x)}`}
+                                                        onClick={() => void remove(x.id)}
+                                                        className="rounded-lg border border-emerald-900/10 p-2 text-rose-300 hover:bg-rose-500/15"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 )}
