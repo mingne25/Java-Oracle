@@ -1,3 +1,6 @@
+test
+
+
 # QLSV Oracle — Spring Boot + Next.js
 
 Dự án **mới**, dựa trên nghiệp vụ trong `phan_tich_nghiep_vu_quan_ly_sinh_vien_oop.md` và công nghệ của dự án cũ. Không ghi đè dự án gốc.
