@@ -177,7 +177,16 @@ export default function Page() {
         [query, setQuery] = useState(""),
         [sidebar, setSidebar] = useState(false),
         [busy, setBusy] = useState(false),
-        [profile, setProfile] = useState<Item | null>(null);
+        [profile, setProfile] = useState<Item | null>(null),
+        // Confirm delete modal
+        [deleteTarget, setDeleteTarget] = useState<Item | null>(null),
+        // Assign-class modal (phân lớp)
+        [assignTarget, setAssignTarget] = useState<Item | null>(null),
+        [assignClassId, setAssignClassId] = useState<string>(""),
+        // Transfer-class modal (chuyển lớp) – step 1: pick class, step 2: confirm
+        [transferTarget, setTransferTarget] = useState<Item | null>(null),
+        [transferClassId, setTransferClassId] = useState<string>(""),
+        [transferStep, setTransferStep] = useState<1 | 2>(1);
     const listLoadId = useRef(0);
     const load = useCallback(async (current: string, role: string) => {
         const isList = Boolean(specs[current]);
@@ -350,6 +359,11 @@ export default function Page() {
         }
     }
     async function remove(id: number) {
+        if (tab === "students") {
+            const target = data.find((x) => x.id === id) || null;
+            setDeleteTarget(target || { id });
+            return;
+        }
         if (
             !window.confirm(
                 "Bạn có chắc muốn xóa bản ghi này? Thao tác không thể hoàn tác.",
@@ -363,6 +377,66 @@ export default function Page() {
             await load(tab, user!.role);
         } catch (e: any) {
             setError(e.message);
+        }
+    }
+    async function confirmDelete() {
+        if (!deleteTarget) return;
+        setBusy(true);
+        setError("");
+        try {
+            await request("/api/catalog/students/" + deleteTarget.id, { method: "DELETE" });
+            setDeleteTarget(null);
+            setMessage("Đã xóa sinh viên thành công.");
+            await load(tab, user!.role);
+        } catch (e: any) {
+            setDeleteTarget(null);
+            setError(e.message);
+        } finally {
+            setBusy(false);
+        }
+    }
+    async function confirmAssign() {
+        if (!assignTarget || !assignClassId) return;
+        setBusy(true);
+        setError("");
+        try {
+            await request("/api/catalog/students/" + assignTarget.id + "/assign-class", {
+                method: "POST",
+                body: JSON.stringify({ classroomId: Number(assignClassId) }),
+            });
+            setAssignTarget(null);
+            setAssignClassId("");
+            setMessage("Phân lớp thành công.");
+            await load(tab, user!.role);
+        } catch (e: any) {
+            setAssignTarget(null);
+            setAssignClassId("");
+            setError(e.message);
+        } finally {
+            setBusy(false);
+        }
+    }
+    async function confirmTransfer() {
+        if (!transferTarget || !transferClassId) return;
+        setBusy(true);
+        setError("");
+        try {
+            await request("/api/catalog/students/" + transferTarget.id + "/transfer-class", {
+                method: "POST",
+                body: JSON.stringify({ classroomId: Number(transferClassId) }),
+            });
+            setTransferTarget(null);
+            setTransferClassId("");
+            setTransferStep(1);
+            setMessage("Chuyển lớp thành công.");
+            await load(tab, user!.role);
+        } catch (e: any) {
+            setTransferTarget(null);
+            setTransferClassId("");
+            setTransferStep(1);
+            setError(e.message);
+        } finally {
+            setBusy(false);
         }
     }
     function edit(x: Item) {
@@ -613,6 +687,8 @@ export default function Page() {
                             pageCount={pageCount}
                             studentPageSize={STUDENT_PAGE_SIZE}
                             data={data}
+                            onAssign={(x) => { setAssignTarget(x); setAssignClassId(""); }}
+                            onTransfer={(x) => { setTransferTarget(x); setTransferClassId(""); setTransferStep(1); }}
                         />
                     )}
                     {tab === "accounts" && user.role === "ADMIN" && (
@@ -643,6 +719,148 @@ export default function Page() {
                     onSave={save}
                     onCreateAccount={createAccount}
                 />
+            )}
+            {/* Modal xác nhận xóa sinh viên */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-sm rounded-2xl border border-emerald-900/20 bg-[#0f2318] p-6 shadow-2xl">
+                        <h3 className="mb-2 text-base font-bold text-white">Xác nhận xóa sinh viên</h3>
+                        <p className="mb-1 text-sm text-slate-300">
+                            Bạn có chắc muốn xóa sinh viên <span className="font-semibold text-white">{deleteTarget.fullName || deleteTarget.id}</span>?
+                        </p>
+                        {deleteTarget.code && (
+                            <p className="mb-4 font-mono text-xs text-emerald-400">Mã SV: {deleteTarget.code}</p>
+                        )}
+                        <p className="mb-5 text-xs text-rose-300">Thao tác này không thể hoàn tác. Sinh viên đang tham gia lớp học sẽ không thể xóa.</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                className="rounded-xl border border-emerald-900/20 px-4 py-2 text-sm text-slate-300 hover:bg-emerald-900/20"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={() => void confirmDelete()}
+                                disabled={busy}
+                                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                            >
+                                {busy ? "Đang xóa..." : "Xác nhận xóa"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal phân lớp */}
+            {assignTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-sm rounded-2xl border border-emerald-900/20 bg-[#0f2318] p-6 shadow-2xl">
+                        <h3 className="mb-2 text-base font-bold text-white">Phân sinh viên vào lớp</h3>
+                        <p className="mb-4 text-sm text-slate-300">
+                            Sinh viên: <span className="font-semibold text-white">{assignTarget.fullName}</span>
+                        </p>
+                        <label className="mb-1 block text-xs font-semibold text-emerald-400">Chọn lớp học đích</label>
+                        <select
+                            className="soft-input mb-5 w-full"
+                            value={assignClassId}
+                            onChange={(e) => setAssignClassId(e.target.value)}
+                        >
+                            <option value="">— Chọn lớp —</option>
+                            {(lookup.classes || []).map((c: Item) => (
+                                <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                            ))}
+                        </select>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => { setAssignTarget(null); setAssignClassId(""); }}
+                                className="rounded-xl border border-emerald-900/20 px-4 py-2 text-sm text-slate-300 hover:bg-emerald-900/20"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={() => void confirmAssign()}
+                                disabled={busy || !assignClassId}
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                            >
+                                {busy ? "Đang xử lý..." : "Phân lớp"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal chuyển lớp – bước 1: chọn lớp; bước 2: xác nhận */}
+            {transferTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-sm rounded-2xl border border-emerald-900/20 bg-[#0f2318] p-6 shadow-2xl">
+                        {transferStep === 1 ? (
+                            <>
+                                <h3 className="mb-2 text-base font-bold text-white">Chuyển lớp sinh viên</h3>
+                                <p className="mb-1 text-sm text-slate-300">
+                                    Sinh viên: <span className="font-semibold text-white">{transferTarget.fullName}</span>
+                                </p>
+                                <p className="mb-4 text-xs text-slate-400">
+                                    Lớp hiện tại: <span className="text-emerald-400">{transferTarget.classroom?.name || transferTarget.classroomName || "—"}</span>
+                                </p>
+                                <label className="mb-1 block text-xs font-semibold text-emerald-400">Chọn lớp mới</label>
+                                <select
+                                    className="soft-input mb-5 w-full"
+                                    value={transferClassId}
+                                    onChange={(e) => setTransferClassId(e.target.value)}
+                                >
+                                    <option value="">— Chọn lớp —</option>
+                                    {(lookup.classes || [])
+                                        .filter((c: Item) => c.id !== (transferTarget.classroom?.id || transferTarget.classroomId))
+                                        .map((c: Item) => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                                        ))}
+                                </select>
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => { setTransferTarget(null); setTransferClassId(""); setTransferStep(1); }}
+                                        className="rounded-xl border border-emerald-900/20 px-4 py-2 text-sm text-slate-300 hover:bg-emerald-900/20"
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        onClick={() => setTransferStep(2)}
+                                        disabled={!transferClassId}
+                                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                                    >
+                                        Tiếp tục
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="mb-3 text-base font-bold text-white">Xác nhận chuyển lớp</h3>
+                                <p className="mb-2 text-sm text-slate-300">
+                                    Sinh viên: <span className="font-semibold text-white">{transferTarget.fullName}</span>
+                                </p>
+                                <p className="mb-1 text-sm text-slate-400">
+                                    Lớp cũ: <span className="text-rose-300">{transferTarget.classroom?.name || transferTarget.classroomName || "—"}</span>
+                                </p>
+                                <p className="mb-4 text-sm text-slate-400">
+                                    Lớp mới: <span className="text-emerald-300">{(lookup.classes || []).find((c: Item) => String(c.id) === transferClassId)?.name || "—"}</span>
+                                </p>
+                                <p className="mb-5 text-xs text-amber-300">Lịch sử điểm danh lớp cũ sẽ được giữ nguyên. Bạn có chắc chắn muốn chuyển lớp?</p>
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setTransferStep(1)}
+                                        className="rounded-xl border border-emerald-900/20 px-4 py-2 text-sm text-slate-300 hover:bg-emerald-900/20"
+                                    >
+                                        Quay lại
+                                    </button>
+                                    <button
+                                        onClick={() => void confirmTransfer()}
+                                        disabled={busy}
+                                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                                    >
+                                        {busy ? "Đang chuyển..." : "Xác nhận chuyển lớp"}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -302,7 +302,7 @@ public class CatalogController {
         long count = exclude == null ? students.countByClassroom_IdAndStatusIn(c.id, occupying)
                 : students.countByClassroom_IdAndStatusInAndIdNot(c.id, occupying, exclude);
         if (count >= c.maxStudents)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Classroom is full");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lớp đã đủ " + c.maxStudents + " sinh viên, yêu cầu chọn lớp khác.");
     }
 
     private Object save(String type, Long id, Map<String, Object> d) {
@@ -412,13 +412,43 @@ public class CatalogController {
             case "students": {
                 Student x = id == null ? new Student() : required(students.findById(id));
                 StudentStatus previousStatus = x.status;
-                x.code = str(d, "code");
-                x.fullName = str(d, "fullName");
-                x.email = str(d, "email");
-                x.phone = str(d, "phone");
-                x.gender = gender(str(d, "gender"));
-                nonblank(x.code, "code");
-                nonblank(x.fullName, "fullName");
+                String code = str(d, "code");
+                String fullName = str(d, "fullName");
+                String email = str(d, "email");
+                String phone = str(d, "phone");
+                String genderVal = str(d, "gender");
+
+                nonblank(code, "Mã sinh viên");
+                nonblank(fullName, "Họ và tên sinh viên");
+
+                if (email != null && !email.isBlank()) {
+                    if (!email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                        throw badInput("Email không đúng định dạng. Vui lòng kiểm tra lại.");
+                    }
+                }
+
+                if (id == null) {
+                    if (students.existsByCode(code)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Sinh viên đã tồn tại (Mã sinh viên " + code + " đã có trong hệ thống). Yêu cầu nhập lại.");
+                    }
+                    if (email != null && !email.isBlank() && students.existsByEmail(email)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Sinh viên đã tồn tại (Email " + email + " đã có trong hệ thống). Yêu cầu nhập lại.");
+                    }
+                } else {
+                    if (students.existsByCodeAndIdNot(code, id)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Dữ liệu bị trùng lặp: Mã sinh viên " + code + " đã thuộc về sinh viên khác. Yêu cầu kiểm tra, nhập lại.");
+                    }
+                    if (email != null && !email.isBlank() && students.existsByEmailAndIdNot(email, id)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Dữ liệu bị trùng lặp: Email " + email + " đã thuộc về sinh viên khác. Yêu cầu kiểm tra, nhập lại.");
+                    }
+                }
+
+                x.code = code;
+                x.fullName = fullName;
+                x.email = email;
+                x.phone = phone;
+                x.gender = gender(genderVal);
+
                 String dob = str(d, "dateOfBirth");
                 if (dob != null && !dob.isBlank())
                     x.dateOfBirth = date(dob);
@@ -434,11 +464,17 @@ public class CatalogController {
                         capacity(c, id);
                     if (moving && id != null && studentSubjects.existsByStudent_Id(id))
                         throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                "Remove the student's subject registrations before transferring them to another classroom");
+                                "Cần hủy các môn học đã đăng ký của lớp cũ trước khi chuyển lớp.");
                     if (x.classroom != null && !x.classroom.faculty.id.equals(c.faculty.id))
                         throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                "Cross-faculty transfer is not permitted");
+                                "Không thể chuyển sinh viên sang lớp thuộc khoa khác.");
                     x.classroom = c;
+                } else {
+                    if (id != null && x.classroom != null && studentSubjects.existsByStudent_Id(id)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Cần hủy các môn học đã đăng ký của sinh viên trước khi rút sinh viên khỏi lớp.");
+                    }
+                    x.classroom = null;
                 }
                 return students.save(x);
             }
@@ -461,10 +497,64 @@ public class CatalogController {
         };
     }
 
+    @PostMapping("/students/{id}/assign-class")
+    @Transactional
+    public StudentSummary assignClass(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Student student = required(students.findById(id));
+        if (student.classroom != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sinh viên đã được phân lớp, không thể thực hiện.");
+        }
+        Long cid = requiredNumber(body, "classroomId");
+        Classroom c = required(classes.findByIdForUpdate(cid));
+        capacity(c, id);
+        student.classroom = c;
+        return summary(students.saveAndFlush(student));
+    }
+
+    @PostMapping("/students/{id}/transfer-class")
+    @Transactional
+    public StudentSummary transferClass(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Student student = required(students.findById(id));
+        if (student.classroom == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sinh viên chưa được phân lớp. Hãy sử dụng chức năng phân lớp.");
+        }
+        Long cid = requiredNumber(body, "classroomId");
+        if (student.classroom.id.equals(cid)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lớp đích trùng với lớp hiện tại của sinh viên.");
+        }
+        Classroom target = required(classes.findByIdForUpdate(cid));
+        if (!student.classroom.faculty.id.equals(target.faculty.id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không được phép chuyển sinh viên sang lớp thuộc khoa khác.");
+        }
+        capacity(target, id);
+        if (studentSubjects.existsByStudent_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cần hủy các môn học đã đăng ký của lớp cũ trước khi chuyển lớp.");
+        }
+        student.classroom = target;
+        return summary(students.saveAndFlush(student));
+    }
+
     @DeleteMapping("/{type}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void delete(@PathVariable String type, @PathVariable Long id) {
+        if (type.equals("students")) {
+            Student s = students.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sinh viên không tồn tại trong hệ thống. Vui lòng chọn lại."));
+            if (s.classroom != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sinh viên đang tham gia lớp học, không đủ điều kiện xóa. Yêu cầu kiểm tra lại.");
+            }
+            if (users.existsByStudent_Id(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể xóa sinh viên vì đang có tài khoản liên kết. Vui lòng xóa tài khoản trước.");
+            }
+            if (studentSubjects.existsByStudent_Id(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể xóa sinh viên vì đang có đăng ký môn học liên kết. Vui lòng hủy đăng ký trước.");
+            }
+            students.delete(s);
+            students.flush();
+            return;
+        }
+
         JpaRepository<?, Long> repo = repository(type);
         if (!repo.existsById(id))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bản ghi cần xóa.");
