@@ -70,17 +70,14 @@ const tabs = [
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
-        ["code", "Mã khóa"],
         ["name", "Tên khóa"],
         ["startYear", "Năm bắt đầu", "number"],
     ],
     faculties: [
-        ["code", "Mã khoa"],
         ["name", "Tên khoa"],
         ["courseYearId", "Khóa học", "years"],
     ],
     classes: [
-        ["code", "Mã lớp"],
         ["name", "Tên lớp"],
         ["facultyId", "Khoa", "faculties"],
         ["teacherId", "Giảng viên phụ trách", "teachers"],
