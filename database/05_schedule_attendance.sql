@@ -1,3 +1,7 @@
+SET ECHO ON
+SET FEEDBACK ON
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+
 -- ============================================================
 -- 05_schedule_attendance.sql
 -- Execute as QLSV in FREEPDB1.
