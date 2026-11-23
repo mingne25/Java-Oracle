@@ -25,7 +25,7 @@ public class WeeklySchedule {
     @Column(name = "END_MINUTE", nullable = false)
     public Integer endMinute;
 
-    @Column(name = "ROOM")
+    @Column(name = "ROOM", length = 100)
     public String room;
 
     @Column(name = "EFFECTIVE_FROM", nullable = false)
