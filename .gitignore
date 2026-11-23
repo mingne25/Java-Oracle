@@ -1,6 +1,0 @@
-**/target/
-**/node_modules/
-**/.next/
-**/.env.local
-**/.env
-*.log

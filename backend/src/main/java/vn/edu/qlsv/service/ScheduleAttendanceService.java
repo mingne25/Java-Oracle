@@ -218,6 +218,10 @@ public class ScheduleAttendanceService {
         if (input.sessionDate() == null) throw badRequest("sessionDate is required");
         validateMinutes(input.startMinute(), input.endMinute());
 
+        boolean hasAttendance = !attendances.findBySession_IdOrderByStudent_FullNameAsc(id).isEmpty();
+        if (hasAttendance && !x.classroomSubject.id.equals(input.classroomSubjectId()))
+            throw badRequest("Cannot change the class/subject of a session that already has attendance records");
+
         WeeklySchedule template = null;
         if (input.weeklyScheduleId() != null) {
             template = weeklySchedules.findById(input.weeklyScheduleId())
@@ -272,7 +276,13 @@ public class ScheduleAttendanceService {
             if (input.sessionDate().isBefore(template.effectiveFrom)
                     || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
                 throw badRequest("Session date is outside the weekly schedule effective period");
+            var duplicate = sessions.findByWeeklySchedule_IdAndSessionDate(template.id, input.sessionDate());
+            if (duplicate.isPresent() && !duplicate.get().id.equals(x.id))
+                throw badRequest("A session already exists for this weekly schedule and date");
         }
+        if (hasAttendance && ((x.weeklySchedule == null && template != null)
+                || (x.weeklySchedule != null && (template == null || !x.weeklySchedule.id.equals(template.id)))))
+            throw badRequest("Cannot change the source weekly schedule after attendance has been recorded");
 
         x.weeklySchedule = template;
         x.classroomSubject = cs;
