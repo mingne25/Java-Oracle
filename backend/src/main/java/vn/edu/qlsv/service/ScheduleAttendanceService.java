@@ -146,6 +146,27 @@ public class ScheduleAttendanceService {
         return scheduleView(weeklySchedules.save(x));
     }
 
+    public ScheduleView updateWeeklySchedule(Long id, WeeklyScheduleInput input) {
+        if (input == null) throw badRequest("Request body is required");
+        WeeklySchedule x = weeklySchedules.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Weekly schedule not found"));
+        ClassroomSubject cs = offering(input.classroomSubjectId());
+        if (input.dayOfWeek() == null || input.dayOfWeek() < 2 || input.dayOfWeek() > 8)
+            throw badRequest("dayOfWeek must be from 2 (Monday) to 8 (Sunday)");
+        validateMinutes(input.startMinute(), input.endMinute());
+        if (input.effectiveFrom() == null) throw badRequest("effectiveFrom is required");
+        if (input.effectiveTo() != null && input.effectiveTo().isBefore(input.effectiveFrom()))
+            throw badRequest("effectiveTo cannot be before effectiveFrom");
+        x.classroomSubject = cs;
+        x.dayOfWeek = input.dayOfWeek();
+        x.startMinute = input.startMinute();
+        x.endMinute = input.endMinute();
+        x.room = input.room();
+        x.effectiveFrom = input.effectiveFrom();
+        x.effectiveTo = input.effectiveTo();
+        return scheduleView(weeklySchedules.save(x));
+    }
+
     public List<ScheduleView> listWeeklySchedules() {
         return weeklySchedules.findAll().stream().map(this::scheduleView).toList();
     }
@@ -185,6 +206,47 @@ public class ScheduleAttendanceService {
         x.room = input.room();
         x.status = "SCHEDULED";
         x.note = input.note();
+        return sessionView(sessions.save(x));
+    }
+
+    public SessionView updateSession(Long id, ClassSessionInput input) {
+        if (input == null) throw badRequest("Request body is required");
+        ClassSession x = sessions.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        if ("CANCELLED".equals(x.status))
+            throw badRequest("A cancelled session cannot be updated");
+        ClassroomSubject cs = offering(input.classroomSubjectId());
+        if (input.sessionDate() == null) throw badRequest("sessionDate is required");
+        validateMinutes(input.startMinute(), input.endMinute());
+
+        WeeklySchedule template = null;
+        if (input.weeklyScheduleId() != null) {
+            template = weeklySchedules.findById(input.weeklyScheduleId())
+                    .orElseThrow(() -> badRequest("Invalid weeklyScheduleId"));
+            if (!template.classroomSubject.id.equals(cs.id))
+                throw badRequest("Weekly schedule does not belong to this classroom subject");
+            if (!Boolean.TRUE.equals(template.active))
+                throw badRequest("Cannot use an inactive weekly schedule");
+            if (input.sessionDate().isBefore(template.effectiveFrom)
+                    || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
+                throw badRequest("Session date is outside the weekly schedule effective period");
+        }
+
+        x.weeklySchedule = template;
+        x.classroomSubject = cs;
+        x.sessionNo = input.sessionNo();
+        x.sessionDate = input.sessionDate();
+        x.startMinute = input.startMinute();
+        x.endMinute = input.endMinute();
+        x.room = input.room();
+        x.note = input.note();
+        return sessionView(sessions.save(x));
+    }
+
+    public SessionView cancelSession(Long id) {
+        ClassSession x = sessions.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        x.status = "CANCELLED";
         return sessionView(sessions.save(x));
     }
 
