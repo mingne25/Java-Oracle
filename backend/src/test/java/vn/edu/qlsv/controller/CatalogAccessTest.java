@@ -23,6 +23,7 @@ import vn.edu.qlsv.repository.*;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -206,14 +207,14 @@ class CatalogAccessTest {
                 .post("/api/catalog/students")
                 .with(user("teacher01").roles("TEACHER"))
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .content("{\\"code\\":\\"SV999\\",\\"fullName\\":\\"Test Student\\"}"))
+                .content("{\"code\":\"SV999\",\"fullName\":\"Test Student\"}"))
                 .andExpect(status().isForbidden());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .put("/api/catalog/students/21")
                 .with(user("teacher01").roles("TEACHER"))
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .content("{\\"fullName\\":\\"Changed Name\\"}"))
+                .content("{\"fullName\":\"Changed Name\"}"))
                 .andExpect(status().isForbidden());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
