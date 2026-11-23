@@ -110,3 +110,27 @@ Gửi lại cùng sinh viên trong cùng buổi sẽ cập nhật bản ghi đi�
 - Sinh viên phải thuộc đúng lớp hành chính được phân công môn học của buổi học.
 - Không cho phép điểm danh buổi đã hủy.
 - Oracle giữ ràng buộc duy nhất một bản ghi cho mỗi cặp buổi học và sinh viên.
+
+
+## Sinh buổi học từ lịch tuần
+
+### Ngừng áp dụng lịch tuần
+`PUT /api/admin/schedules/weekly/{id}/deactivate`
+
+Lịch tuần được chuyển `ACTIVE = 0`, không xóa dữ liệu. Những buổi đã sinh từ lịch này vẫn được giữ nguyên.
+
+### Sinh hàng loạt buổi học
+`POST /api/admin/schedules/weekly/{id}/generate`
+
+Request:
+```json
+{ "from": "2026-12-01", "to": "2027-02-28" }
+```
+
+Chỉ các ngày trùng thứ với lịch tuần và nằm trong khoảng hiệu lực mới được tạo. Giờ, phòng được lấy từ lịch tuần. Khoảng sinh tối đa sáu tháng. Response trả `createdCount`, `skippedCount`, `createdSessions`. Ngày đã có buổi liên kết với lịch này sẽ được bỏ qua, kể cả buổi đã hủy, để không tạo trùng.
+
+### Bảo toàn dữ liệu
+- Sửa lịch tuần chỉ ảnh hưởng các lần sinh buổi tiếp theo; không tự động sửa các buổi đã tạo.
+- Sửa buổi cụ thể chỉ cập nhật buổi được chọn.
+- Hủy là hủy mềm bằng trạng thái `CANCELLED`; không xóa buổi và dữ liệu điểm danh.
+- Không có thao tác xóa cứng lịch tuần/buổi học.

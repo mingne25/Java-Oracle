@@ -9,6 +9,7 @@ import vn.edu.qlsv.model.*;
 import vn.edu.qlsv.repository.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -46,6 +47,10 @@ public class ScheduleAttendanceService {
             LocalDate effectiveFrom,
             LocalDate effectiveTo) {
     }
+
+    public record GenerateSessionsInput(LocalDate from, LocalDate to) { }
+
+    public record GenerateSessionsResult(Long weeklyScheduleId, int createdCount, int skippedCount, List<SessionView> createdSessions) { }
 
     public record ClassSessionInput(
             Long classroomSubjectId,
@@ -167,6 +172,36 @@ public class ScheduleAttendanceService {
         return scheduleView(weeklySchedules.save(x));
     }
 
+    public ScheduleView deactivateWeeklySchedule(Long id) {
+        WeeklySchedule x = weeklySchedules.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Weekly schedule not found"));
+        x.active = false;
+        return scheduleView(weeklySchedules.save(x));
+    }
+
+    public GenerateSessionsResult generateSessions(Long id, GenerateSessionsInput input) {
+        if (input == null || input.from() == null || input.to() == null) throw badRequest("from and to are required");
+        if (input.to().isBefore(input.from()) || input.to().isAfter(input.from().plusMonths(6))) throw badRequest("Provide a valid generation range of at most six months");
+        WeeklySchedule template = weeklySchedules.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Weekly schedule not found"));
+        if (!Boolean.TRUE.equals(template.active)) throw badRequest("Cannot generate sessions from an inactive weekly schedule");
+        LocalDate first = input.from().isBefore(template.effectiveFrom) ? template.effectiveFrom : input.from();
+        LocalDate last = template.effectiveTo != null && input.to().isAfter(template.effectiveTo) ? template.effectiveTo : input.to();
+        if (last.isBefore(first)) return new GenerateSessionsResult(id, 0, 0, List.of());
+        int nextSessionNo = sessions.findByWeeklySchedule_IdOrderBySessionDateAscStartMinuteAsc(id).size() + 1;
+        int created = 0, skipped = 0;
+        List<SessionView> createdSessions = new ArrayList<>();
+        for (LocalDate date = first; !date.isAfter(last); date = date.plusDays(1)) {
+            if (date.getDayOfWeek().getValue() + 1 != template.dayOfWeek) continue;
+            if (sessions.findByWeeklySchedule_IdAndSessionDate(id, date).isPresent()) { skipped++; continue; }
+            ClassSession session = new ClassSession();
+            session.weeklySchedule = template; session.classroomSubject = template.classroomSubject;
+            session.sessionNo = nextSessionNo++; session.sessionDate = date;
+            session.startMinute = template.startMinute; session.endMinute = template.endMinute;
+            session.room = template.room; session.status = "SCHEDULED"; session.note = null;
+            createdSessions.add(sessionView(sessions.save(session))); created++;
+        }
+        return new GenerateSessionsResult(id, created, skipped, createdSessions);
+    }
+
     public List<ScheduleView> listWeeklySchedules() {
         return weeklySchedules.findAll().stream().map(this::scheduleView).toList();
     }
@@ -191,6 +226,8 @@ public class ScheduleAttendanceService {
                 throw badRequest("Weekly schedule does not belong to this classroom subject");
             if (!Boolean.TRUE.equals(template.active))
                 throw badRequest("Cannot create a session from an inactive weekly schedule");
+            if (input.sessionDate().getDayOfWeek().getValue() + 1 != template.dayOfWeek)
+                throw badRequest("Session date does not match the weekly schedule day");
             if (input.sessionDate().isBefore(template.effectiveFrom)
                     || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
                 throw badRequest("Session date is outside the weekly schedule effective period");
@@ -227,6 +264,8 @@ public class ScheduleAttendanceService {
                 throw badRequest("Weekly schedule does not belong to this classroom subject");
             if (!Boolean.TRUE.equals(template.active))
                 throw badRequest("Cannot use an inactive weekly schedule");
+            if (input.sessionDate().getDayOfWeek().getValue() + 1 != template.dayOfWeek)
+                throw badRequest("Session date does not match the weekly schedule day");
             if (input.sessionDate().isBefore(template.effectiveFrom)
                     || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
                 throw badRequest("Session date is outside the weekly schedule effective period");

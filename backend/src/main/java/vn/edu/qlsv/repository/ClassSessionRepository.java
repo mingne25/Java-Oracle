@@ -13,4 +13,8 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
             LocalDate from, LocalDate to);
 
     List<ClassSession> findByClassroomSubject_Teacher_IdOrderBySessionDateAscStartMinuteAsc(Long teacherId);
+
+    List<ClassSession> findByWeeklySchedule_IdOrderBySessionDateAscStartMinuteAsc(Long weeklyScheduleId);
+
+    java.util.Optional<ClassSession> findByWeeklySchedule_IdAndSessionDate(Long weeklyScheduleId, LocalDate sessionDate);
 }

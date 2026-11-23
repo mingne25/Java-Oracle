@@ -29,6 +29,12 @@ public class AdminScheduleController {
         return service.updateWeeklySchedule(id, input);
     }
 
+    @PutMapping("/weekly/{id}/deactivate")
+    public ScheduleAttendanceService.ScheduleView deactivateWeekly(@PathVariable Long id) { return service.deactivateWeeklySchedule(id); }
+
+    @PostMapping("/weekly/{id}/generate")
+    public ScheduleAttendanceService.GenerateSessionsResult generateSessions(@PathVariable Long id, @RequestBody ScheduleAttendanceService.GenerateSessionsInput input) { return service.generateSessions(id, input); }
+
     @GetMapping("/weekly")
     public List<ScheduleAttendanceService.ScheduleView> listWeekly() {
         return service.listWeeklySchedules();

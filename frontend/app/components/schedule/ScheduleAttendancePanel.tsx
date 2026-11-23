@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardCheck, Plus, RefreshCw, Save, XCircle } from "lucide-react";
+import { Ban, CalendarDays, ClipboardCheck, Pencil, Plus, RefreshCw, Save, WandSparkles, XCircle } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -90,6 +90,9 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
         classroomSubjectId: "", weeklyScheduleId: "", sessionNo: "",
         sessionDate: today, start: "07:00", end: "09:00", room: "", note: "",
     });
+    const [editingWeeklyId, setEditingWeeklyId] = useState<number | null>(null);
+    const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+    const [generationForm, setGenerationForm] = useState({ weeklyScheduleId: "", from: today, to: endDate });
     const [busy, setBusy] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -129,8 +132,8 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
         e.preventDefault();
         setBusy(true); setError(""); setMessage("");
         try {
-            await api("/api/admin/schedules/weekly", {
-                method: "POST",
+            await api(editingWeeklyId ? `/api/admin/schedules/weekly/${editingWeeklyId}` : "/api/admin/schedules/weekly", {
+                method: editingWeeklyId ? "PUT" : "POST",
                 body: JSON.stringify({
                     classroomSubjectId: Number(weeklyForm.classroomSubjectId),
                     dayOfWeek: Number(weeklyForm.dayOfWeek),
@@ -141,7 +144,8 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                     effectiveTo: weeklyForm.effectiveTo || null,
                 }),
             });
-            setMessage("Đã tạo thời khóa biểu tuần.");
+            setMessage(editingWeeklyId ? "Đã cập nhật thời khóa biểu tuần." : "Đã tạo thời khóa biểu tuần.");
+            setEditingWeeklyId(null);
             await load();
         } catch (e: any) { setError(e.message); }
         finally { setBusy(false); }
@@ -151,8 +155,8 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
         e.preventDefault();
         setBusy(true); setError(""); setMessage("");
         try {
-            await api("/api/admin/schedules/sessions", {
-                method: "POST",
+            await api(editingSessionId ? `/api/admin/schedules/sessions/${editingSessionId}` : "/api/admin/schedules/sessions", {
+                method: editingSessionId ? "PUT" : "POST",
                 body: JSON.stringify({
                     classroomSubjectId: Number(sessionForm.classroomSubjectId),
                     weeklyScheduleId: sessionForm.weeklyScheduleId ? Number(sessionForm.weeklyScheduleId) : null,
@@ -164,10 +168,39 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                     note: sessionForm.note || null,
                 }),
             });
-            setMessage("Đã tạo buổi học cụ thể.");
+            setMessage(editingSessionId ? "Đã cập nhật buổi học." : "Đã tạo buổi học cụ thể.");
+            setEditingSessionId(null);
             await load();
         } catch (e: any) { setError(e.message); }
         finally { setBusy(false); }
+    }
+
+    function editWeekly(w: Schedule) {
+        setEditingWeeklyId(w.id);
+        setWeeklyForm({ classroomSubjectId: String(w.classroomSubjectId), dayOfWeek: String(w.dayOfWeek), start: clock(w.startMinute), end: clock(w.endMinute), room: w.room || "", effectiveFrom: w.effectiveFrom, effectiveTo: w.effectiveTo || "" });
+        setError(""); setMessage("Đang chỉnh sửa lịch tuần #" + w.id);
+    }
+
+    async function deactivateWeekly(id: number) {
+        if (!window.confirm("Ngừng áp dụng lịch tuần này? Các buổi học đã tạo sẽ được giữ nguyên.")) return;
+        setBusy(true); setError(""); setMessage("");
+        try { await api(`/api/admin/schedules/weekly/${id}/deactivate`, { method: "PUT" }); setMessage("Đã ngừng áp dụng lịch tuần. Các buổi học đã tạo vẫn được giữ nguyên."); await load(); }
+        catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    }
+
+    async function generateFromWeekly() {
+        if (!generationForm.weeklyScheduleId) { setError("Vui lòng chọn lịch tuần."); return; }
+        setBusy(true); setError(""); setMessage("");
+        try {
+            const result = await api(`/api/admin/schedules/weekly/${generationForm.weeklyScheduleId}/generate`, { method: "POST", body: JSON.stringify({ from: generationForm.from, to: generationForm.to }) });
+            setMessage(`Đã tạo ${result.createdCount} buổi học; bỏ qua ${result.skippedCount} ngày đã có buổi học.`); await load();
+        } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    }
+
+    function editSession(s: Session) {
+        setEditingSessionId(s.id);
+        setSessionForm({ classroomSubjectId: String(s.classroomSubjectId), weeklyScheduleId: s.weeklyScheduleId ? String(s.weeklyScheduleId) : "", sessionNo: s.sessionNo ? String(s.sessionNo) : "", sessionDate: s.sessionDate, start: clock(s.startMinute), end: clock(s.endMinute), room: s.room || "", note: s.note || "" });
+        setError(""); setMessage("Đang chỉnh sửa buổi học #" + s.id);
     }
 
     async function cancelSession(id: number) {
@@ -254,9 +287,21 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                         {weekly.length === 0 ? <p className="mb-5 text-sm text-slate-500">Chưa có thời khóa biểu tuần.</p> : (
                             <div className="mb-5 overflow-x-auto">
                                 <table className="w-full min-w-[650px] text-left text-sm">
-                                    <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">Thứ</th><th className="p-3">Lớp / Môn</th><th className="p-3">Giảng viên</th><th className="p-3">Thời gian</th><th className="p-3">Phòng</th><th className="p-3">Hiệu lực</th></tr></thead>
-                                    <tbody>{weekly.map((w) => <tr key={w.id} className="border-t border-slate-100"><td className="p-3">{dayNames[w.dayOfWeek]}</td><td className="p-3 font-medium">{w.classroomName} · {w.subjectName}</td><td className="p-3">{w.teacherName}</td><td className="p-3">{clock(w.startMinute)}–{clock(w.endMinute)}</td><td className="p-3">{w.room || "—"}</td><td className="p-3">{w.effectiveFrom}{w.effectiveTo ? ` → ${w.effectiveTo}` : " → ..."}</td></tr>)}</tbody>
+                                    <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">Thứ</th><th className="p-3">Lớp / Môn</th><th className="p-3">Giảng viên</th><th className="p-3">Thời gian</th><th className="p-3">Phòng</th><th className="p-3">Hiệu lực</th>{user.role === "ADMIN" && <th className="p-3">Thao tác</th>}</tr></thead>
+                                    <tbody>{weekly.map((w) => <tr key={w.id} className="border-t border-slate-100"><td className="p-3">{dayNames[w.dayOfWeek]}</td><td className="p-3 font-medium">{w.classroomName} · {w.subjectName}</td><td className="p-3">{w.teacherName}</td><td className="p-3">{clock(w.startMinute)}–{clock(w.endMinute)}</td><td className="p-3">{w.room || "—"}</td><td className="p-3">{w.effectiveFrom}{w.effectiveTo ? ` → ${w.effectiveTo}` : " → ..."}<div className="text-xs text-slate-500">{w.active ? "Đang áp dụng" : "Đã ngừng"}</div></td>{user.role === "ADMIN" && <td className="p-3"><div className="flex flex-wrap gap-1"><button disabled={busy || !w.active} onClick={() => editWeekly(w)} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-sky-700 hover:bg-sky-50 disabled:opacity-40"><Pencil size={13} /> Sửa</button><button disabled={busy || !w.active} onClick={() => void deactivateWeekly(w.id)} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 disabled:opacity-40"><Ban size={13} /> Ngừng</button><button disabled={busy || !w.active} onClick={() => setGenerationForm({ ...generationForm, weeklyScheduleId: String(w.id) })} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"><WandSparkles size={13} /> Tạo buổi</button></div></td>}</tr>)}</tbody>
                                 </table>
+                            </div>
+                        )}
+                        {user.role === "ADMIN" && (
+                            <div className="mb-5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                                <h3 className="mb-3 text-sm font-bold text-slate-700">Tạo hàng loạt buổi học từ lịch tuần</h3>
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <label><span className={labelClass}>Lịch tuần</span><select className={inputClass} value={generationForm.weeklyScheduleId} onChange={(e) => setGenerationForm({ ...generationForm, weeklyScheduleId: e.target.value })}><option value="">Chọn lịch tuần</option>{weekly.filter((w) => w.active).map((w) => <option key={w.id} value={w.id}>{w.classroomName} · {w.subjectName} · {dayNames[w.dayOfWeek]}</option>)}</select></label>
+                                    <label><span className={labelClass}>Từ ngày</span><input type="date" className={inputClass} value={generationForm.from} onChange={(e) => setGenerationForm({ ...generationForm, from: e.target.value })} /></label>
+                                    <label><span className={labelClass}>Đến ngày</span><input type="date" className={inputClass} value={generationForm.to} onChange={(e) => setGenerationForm({ ...generationForm, to: e.target.value })} /></label>
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500">Chỉ tạo ngày trùng thứ với lịch tuần và nằm trong thời gian hiệu lực. Ngày đã có buổi học sẽ được bỏ qua.</p>
+                                <button type="button" disabled={busy || !generationForm.weeklyScheduleId} onClick={() => void generateFromWeekly()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><WandSparkles size={15} /> Tạo buổi học</button>
                             </div>
                         )}
                         <h3 className="mb-2 text-sm font-bold text-slate-700">Buổi học cụ thể</h3>
@@ -264,7 +309,7 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[650px] text-left text-sm">
                                     <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">Ngày</th><th className="p-3">Lớp / Môn</th><th className="p-3">Thời gian</th><th className="p-3">Phòng</th><th className="p-3">Trạng thái</th>{user.role === "ADMIN" ? <th className="p-3">Thao tác</th> : <th className="p-3">Điểm danh</th>}</tr></thead>
-                                    <tbody>{sessions.map((s) => <tr key={s.id} className="border-t border-slate-100"><td className="p-3">{s.sessionDate}</td><td className="p-3 font-medium">{s.classroomName} · {s.subjectName}<div className="text-xs font-normal text-slate-500">{s.teacherName}</div></td><td className="p-3">{clock(s.startMinute)}–{clock(s.endMinute)}</td><td className="p-3">{s.room || "—"}</td><td className="p-3">{s.status}</td><td className="p-3">{user.role === "ADMIN" ? (s.status !== "CANCELLED" && <button disabled={busy} onClick={() => void cancelSession(s.id)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"><XCircle size={14} /> Hủy</button>) : <button disabled={s.status === "CANCELLED"} onClick={() => void chooseSession(s.id)} className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-40">Mở điểm danh</button>}</td></tr>)}</tbody>
+                                    <tbody>{sessions.map((s) => <tr key={s.id} className="border-t border-slate-100"><td className="p-3">{s.sessionDate}</td><td className="p-3 font-medium">{s.classroomName} · {s.subjectName}<div className="text-xs font-normal text-slate-500">{s.teacherName}</div></td><td className="p-3">{clock(s.startMinute)}–{clock(s.endMinute)}</td><td className="p-3">{s.room || "—"}</td><td className="p-3">{s.status}</td><td className="p-3">{user.role === "ADMIN" ? (s.status !== "CANCELLED" && <div className="flex flex-wrap gap-1"><button disabled={busy} onClick={() => editSession(s)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-sky-700 hover:bg-sky-50"><Pencil size={13} /> Sửa</button><button disabled={busy} onClick={() => void cancelSession(s.id)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"><XCircle size={14} /> Hủy</button></div>) : <button disabled={s.status === "CANCELLED"} onClick={() => void chooseSession(s.id)} className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-40">Mở điểm danh</button>}</td></tr>)}</tbody>
                                 </table>
                             </div>
                         )}
@@ -275,7 +320,7 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
             {user.role === "ADMIN" && (
                 <div className="grid gap-6 xl:grid-cols-2">
                     <form onSubmit={createWeekly} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center gap-2"><Plus size={18} className="text-emerald-600" /><h2 className="font-bold text-slate-800">Tạo thời khóa biểu tuần</h2></div>
+                        <div className="flex items-center gap-2"><Plus size={18} className="text-emerald-600" /><h2 className="font-bold text-slate-800">{editingWeeklyId ? `Sửa thời khóa biểu tuần #${editingWeeklyId}` : "Tạo thời khóa biểu tuần"}</h2></div>
                         <label><span className={labelClass}>Lớp / môn / giảng viên</span><select required className={inputClass} value={weeklyForm.classroomSubjectId} onChange={(e) => setWeeklyForm({ ...weeklyForm, classroomSubjectId: e.target.value })}><option value="">Chọn phân công lớp – môn</option>{offerings.map((o) => <option key={o.id} value={o.id}>{offeringName(o)}</option>)}</select></label>
                         <div className="grid grid-cols-2 gap-3">
                             <label><span className={labelClass}>Thứ</span><select className={inputClass} value={weeklyForm.dayOfWeek} onChange={(e) => setWeeklyForm({ ...weeklyForm, dayOfWeek: e.target.value })}>{Object.entries(dayNames).map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></label>
@@ -285,13 +330,13 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                             <label><span className={labelClass}>Ngày bắt đầu áp dụng</span><input required type="date" className={inputClass} value={weeklyForm.effectiveFrom} onChange={(e) => setWeeklyForm({ ...weeklyForm, effectiveFrom: e.target.value })} /></label>
                             <label><span className={labelClass}>Ngày kết thúc (không bắt buộc)</span><input type="date" className={inputClass} value={weeklyForm.effectiveTo} onChange={(e) => setWeeklyForm({ ...weeklyForm, effectiveTo: e.target.value })} /></label>
                         </div>
-                        <button disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={16} /> Lưu thời khóa biểu</button>
+                        <div className="flex flex-wrap gap-2"><button disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={16} /> {editingWeeklyId ? "Cập nhật lịch tuần" : "Lưu thời khóa biểu"}</button>{editingWeeklyId && <button type="button" onClick={() => setEditingWeeklyId(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm">Hủy sửa</button>}</div>
                     </form>
 
                     <form onSubmit={createSession} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center gap-2"><Plus size={18} className="text-emerald-600" /><h2 className="font-bold text-slate-800">Tạo buổi học cụ thể</h2></div>
+                        <div className="flex items-center gap-2"><Plus size={18} className="text-emerald-600" /><h2 className="font-bold text-slate-800">{editingSessionId ? `Sửa buổi học #${editingSessionId}` : "Tạo buổi học cụ thể"}</h2></div>
                         <label><span className={labelClass}>Lớp / môn / giảng viên</span><select required className={inputClass} value={sessionForm.classroomSubjectId} onChange={(e) => setSessionForm({ ...sessionForm, classroomSubjectId: e.target.value, weeklyScheduleId: "" })}><option value="">Chọn phân công lớp – môn</option>{offerings.map((o) => <option key={o.id} value={o.id}>{offeringName(o)}</option>)}</select></label>
-                        <label><span className={labelClass}>Lịch tuần nguồn (có thể bỏ trống để tạo độc lập)</span><select className={inputClass} value={sessionForm.weeklyScheduleId} onChange={(e) => setSessionForm({ ...sessionForm, weeklyScheduleId: e.target.value })}><option value="">Buổi học độc lập</option>{weekly.filter((w) => String(w.classroomSubjectId) === sessionForm.classroomSubjectId).map((w) => <option key={w.id} value={w.id}>{dayNames[w.dayOfWeek]} · {clock(w.startMinute)}–{clock(w.endMinute)} · {w.room || "Chưa có phòng"}</option>)}</select></label>
+                        <label><span className={labelClass}>Lịch tuần nguồn (có thể bỏ trống để tạo độc lập)</span><select className={inputClass} value={sessionForm.weeklyScheduleId} onChange={(e) => setSessionForm({ ...sessionForm, weeklyScheduleId: e.target.value })}><option value="">Buổi học độc lập</option>{weekly.filter((w) => w.active && String(w.classroomSubjectId) === sessionForm.classroomSubjectId).map((w) => <option key={w.id} value={w.id}>{dayNames[w.dayOfWeek]} · {clock(w.startMinute)}–{clock(w.endMinute)} · {w.room || "Chưa có phòng"}</option>)}</select></label>
                         <div className="grid grid-cols-2 gap-3">
                             <label><span className={labelClass}>Ngày học</span><input required type="date" className={inputClass} value={sessionForm.sessionDate} onChange={(e) => setSessionForm({ ...sessionForm, sessionDate: e.target.value })} /></label>
                             <label><span className={labelClass}>Số buổi (tùy chọn)</span><input type="number" min="1" className={inputClass} value={sessionForm.sessionNo} onChange={(e) => setSessionForm({ ...sessionForm, sessionNo: e.target.value })} /></label>
@@ -300,7 +345,7 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                             <label><span className={labelClass}>Phòng học</span><input className={inputClass} value={sessionForm.room} onChange={(e) => setSessionForm({ ...sessionForm, room: e.target.value })} /></label>
                             <label><span className={labelClass}>Ghi chú</span><input className={inputClass} value={sessionForm.note} onChange={(e) => setSessionForm({ ...sessionForm, note: e.target.value })} /></label>
                         </div>
-                        <button disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={16} /> Lưu buổi học</button>
+                        <div className="flex flex-wrap gap-2"><button disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={16} /> {editingSessionId ? "Cập nhật buổi học" : "Lưu buổi học"}</button>{editingSessionId && <button type="button" onClick={() => setEditingSessionId(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm">Hủy sửa</button>}</div>
                     </form>
                 </div>
             )}
