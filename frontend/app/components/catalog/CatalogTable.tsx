@@ -185,7 +185,7 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                             <tr>
                                 <td
                                     colSpan={
-                                        user.role === "ADMIN"
+                                        user.role === "ADMIN" || tab === "classes"
                                             ? tab === "students"
                                                 ? 5
                                                 : 4
