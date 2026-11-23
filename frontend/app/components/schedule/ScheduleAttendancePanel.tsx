@@ -19,8 +19,9 @@ type Schedule = {
     room?: string; effectiveFrom: string; effectiveTo?: string; active: boolean;
 };
 type Session = {
-    id: number; classroomSubjectId: number; classroomName: string; subjectName: string;
-    teacherName: string; sessionNo?: number; sessionDate: string; startMinute: number;
+    id: number; weeklyScheduleId?: number | null; classroomSubjectId: number;
+    classroomName: string; subjectName: string; teacherName: string;
+    sessionNo?: number; sessionDate: string; startMinute: number;
     endMinute: number; room?: string; status: string; note?: string;
 };
 type ClassStudent = {
