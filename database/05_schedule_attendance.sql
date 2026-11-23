@@ -139,7 +139,7 @@ CREATE TABLE attendance (
         REFERENCES classroom_subjects ( id, teacher_id ),
 
     CONSTRAINT ck_att_status
-        CHECK ( status IN ( 'PRESENT', 'ABSENT', 'LATE', 'EXCUSED' ) ),
+        CHECK ( status IN ( 'PRESENT', 'ABSENT', 'LATE' ) ),
 
     CONSTRAINT uq_att_session_student
         UNIQUE ( session_id, student_subject_id )
