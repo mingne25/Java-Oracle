@@ -60,6 +60,9 @@ public class CatalogController {
     record StudentSummary(Long id, String code, String fullName, String classroomName, StudentStatus status) {
     }
 
+    record ClassroomStudentsResponse(ClassroomSummary classroom, List<StudentSummary> students, long currentCount) {
+    }
+
     record FacultySummary(Long id, String name) {
     }
 
@@ -182,6 +185,22 @@ public class CatalogController {
         if (type.equals("teachers") && isTeacher(auth))
             return teachers.findByFaculty_Id(teacherFaculty(auth));
         return repository(type).findAll();
+    }
+
+    @GetMapping("/classes/{id}/students")
+    public ClassroomStudentsResponse studentsInClass(@PathVariable Long id, Authentication auth) {
+        Classroom classroom = classes.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (isTeacher(auth)) {
+            Long currentTeacherId = teacherId(auth);
+            if (classroom.teacher == null || !classroom.teacher.id.equals(currentTeacherId))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        List<Student> classStudents = students.findByClassroom_Id(id);
+        long currentCount = students.countByClassroom_IdAndStatusIn(id,
+                List.of(StudentStatus.STUDYING, StudentStatus.SUSPENDED, StudentStatus.RESERVED));
+        return new ClassroomStudentsResponse(classSummary(classroom),
+                classStudents.stream().map(this::summary).toList(), currentCount);
     }
 
     @GetMapping("/{type}/{id}")
