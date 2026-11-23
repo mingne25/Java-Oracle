@@ -126,6 +126,7 @@ const icons: Record<string, any> = {
     "student-subjects": ClipboardList,
     accounts: ShieldCheck,
     profile: UserRound,
+    schedules: CalendarDays,
 };
 const auth = () =>
     typeof window === "undefined"
