@@ -25,7 +25,6 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
-    ClipboardList,
     Database,
     Edit3,
     GraduationCap,
