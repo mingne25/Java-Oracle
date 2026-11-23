@@ -231,6 +231,8 @@ public class ScheduleAttendanceService {
             if (input.sessionDate().isBefore(template.effectiveFrom)
                     || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
                 throw badRequest("Session date is outside the weekly schedule effective period");
+            if (sessions.findByWeeklySchedule_IdAndSessionDate(template.id, input.sessionDate()).isPresent())
+                throw badRequest("A session already exists for this weekly schedule and date");
         }
 
         ClassSession x = new ClassSession();
@@ -262,8 +264,9 @@ public class ScheduleAttendanceService {
                     .orElseThrow(() -> badRequest("Invalid weeklyScheduleId"));
             if (!template.classroomSubject.id.equals(cs.id))
                 throw badRequest("Weekly schedule does not belong to this classroom subject");
-            if (!Boolean.TRUE.equals(template.active))
-                throw badRequest("Cannot use an inactive weekly schedule");
+            if (!Boolean.TRUE.equals(template.active)
+                    && (x.weeklySchedule == null || !x.weeklySchedule.id.equals(template.id)))
+                throw badRequest("Cannot use an inactive weekly schedule for a new session");
             if (input.sessionDate().getDayOfWeek().getValue() + 1 != template.dayOfWeek)
                 throw badRequest("Session date does not match the weekly schedule day");
             if (input.sessionDate().isBefore(template.effectiveFrom)
