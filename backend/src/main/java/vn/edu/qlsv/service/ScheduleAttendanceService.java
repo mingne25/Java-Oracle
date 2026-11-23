@@ -1,0 +1,279 @@
+package vn.edu.qlsv.service;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import vn.edu.qlsv.model.*;
+import vn.edu.qlsv.repository.*;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+@Transactional
+public class ScheduleAttendanceService {
+
+    private final WeeklyScheduleRepository weeklySchedules;
+    private final ClassSessionRepository sessions;
+    private final AttendanceRepository attendances;
+    private final ClassroomSubjectRepository classroomSubjects;
+    private final StudentSubjectRepository studentSubjects;
+    private final UserAccountRepository users;
+
+    public ScheduleAttendanceService(
+            WeeklyScheduleRepository weeklySchedules,
+            ClassSessionRepository sessions,
+            AttendanceRepository attendances,
+            ClassroomSubjectRepository classroomSubjects,
+            StudentSubjectRepository studentSubjects,
+            UserAccountRepository users) {
+        this.weeklySchedules = weeklySchedules;
+        this.sessions = sessions;
+        this.attendances = attendances;
+        this.classroomSubjects = classroomSubjects;
+        this.studentSubjects = studentSubjects;
+        this.users = users;
+    }
+
+    public record WeeklyScheduleInput(
+            Long classroomSubjectId,
+            Integer dayOfWeek,
+            Integer startMinute,
+            Integer endMinute,
+            String room,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo) {
+    }
+
+    public record ClassSessionInput(
+            Long classroomSubjectId,
+            Long weeklyScheduleId,
+            Integer sessionNo,
+            LocalDate sessionDate,
+            Integer startMinute,
+            Integer endMinute,
+            String room,
+            String note) {
+    }
+
+    public record AttendanceInput(Long studentSubjectId, String status, String note) {
+    }
+
+    public record ScheduleView(
+            Long id, Long classroomSubjectId, String classroomName, String subjectName,
+            String teacherName, Integer dayOfWeek, Integer startMinute, Integer endMinute,
+            String room, LocalDate effectiveFrom, LocalDate effectiveTo, Boolean active) {
+    }
+
+    public record SessionView(
+            Long id, Long weeklyScheduleId, Long classroomSubjectId,
+            String classroomName, String subjectName, String teacherName,
+            Integer sessionNo, LocalDate sessionDate, Integer startMinute,
+            Integer endMinute, String room, String status, String note) {
+    }
+
+    public record EnrolledStudentView(
+            Long studentSubjectId, Long studentId, String studentCode,
+            String studentName, String attendanceStatus, String attendanceNote) {
+    }
+
+    public record AttendanceView(
+            Long id, Long sessionId, Long studentSubjectId, Long studentId,
+            String studentCode, String studentName, String status,
+            String note, java.time.LocalDateTime markedAt, Long markedByTeacherId) {
+    }
+
+    private ResponseStatusException badRequest(String message) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private ClassroomSubject offering(Long id) {
+        if (id == null) throw badRequest("classroomSubjectId is required");
+        return classroomSubjects.findById(id)
+                .orElseThrow(() -> badRequest("Invalid classroomSubjectId"));
+    }
+
+    private Long teacherId(String username) {
+        UserAccount user = users.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        if (user.teacher == null)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Teacher account is not linked to a teacher");
+        return user.teacher.id;
+    }
+
+    private void validateMinutes(Integer start, Integer end) {
+        if (start == null || end == null || start < 0 || start > 1439
+                || end < 1 || end > 1440 || end <= start)
+            throw badRequest("Invalid startMinute/endMinute; use minutes from midnight and end must be later");
+    }
+
+    private ScheduleView scheduleView(WeeklySchedule x) {
+        ClassroomSubject cs = x.classroomSubject;
+        return new ScheduleView(x.id, cs.id, cs.classroom.name, cs.subject.name,
+                cs.teacher.fullName, x.dayOfWeek, x.startMinute, x.endMinute,
+                x.room, x.effectiveFrom, x.effectiveTo, x.active);
+    }
+
+    private SessionView sessionView(ClassSession x) {
+        ClassroomSubject cs = x.classroomSubject;
+        return new SessionView(x.id, x.weeklySchedule == null ? null : x.weeklySchedule.id,
+                cs.id, cs.classroom.name, cs.subject.name, cs.teacher.fullName,
+                x.sessionNo, x.sessionDate, x.startMinute, x.endMinute,
+                x.room, x.status, x.note);
+    }
+
+    public ScheduleView createWeeklySchedule(WeeklyScheduleInput input) {
+        if (input == null) throw badRequest("Request body is required");
+        ClassroomSubject cs = offering(input.classroomSubjectId());
+        if (input.dayOfWeek() == null || input.dayOfWeek() < 2 || input.dayOfWeek() > 8)
+            throw badRequest("dayOfWeek must be from 2 (Monday) to 8 (Sunday)");
+        validateMinutes(input.startMinute(), input.endMinute());
+        if (input.effectiveFrom() == null) throw badRequest("effectiveFrom is required");
+        if (input.effectiveTo() != null && input.effectiveTo().isBefore(input.effectiveFrom()))
+            throw badRequest("effectiveTo cannot be before effectiveFrom");
+
+        WeeklySchedule x = new WeeklySchedule();
+        x.classroomSubject = cs;
+        x.dayOfWeek = input.dayOfWeek();
+        x.startMinute = input.startMinute();
+        x.endMinute = input.endMinute();
+        x.room = input.room();
+        x.effectiveFrom = input.effectiveFrom();
+        x.effectiveTo = input.effectiveTo();
+        x.active = true;
+        return scheduleView(weeklySchedules.save(x));
+    }
+
+    public List<ScheduleView> listWeeklySchedules() {
+        return weeklySchedules.findAll().stream().map(this::scheduleView).toList();
+    }
+
+    public List<ScheduleView> teacherWeeklySchedules(String username) {
+        Long id = teacherId(username);
+        return weeklySchedules.findByClassroomSubject_Teacher_IdOrderByDayOfWeekAscStartMinuteAsc(id)
+                .stream().map(this::scheduleView).toList();
+    }
+
+    public SessionView createSession(ClassSessionInput input) {
+        if (input == null) throw badRequest("Request body is required");
+        ClassroomSubject cs = offering(input.classroomSubjectId());
+        if (input.sessionDate() == null) throw badRequest("sessionDate is required");
+        validateMinutes(input.startMinute(), input.endMinute());
+
+        WeeklySchedule template = null;
+        if (input.weeklyScheduleId() != null) {
+            template = weeklySchedules.findById(input.weeklyScheduleId())
+                    .orElseThrow(() -> badRequest("Invalid weeklyScheduleId"));
+            if (!template.classroomSubject.id.equals(cs.id))
+                throw badRequest("Weekly schedule does not belong to this classroom subject");
+            if (!Boolean.TRUE.equals(template.active))
+                throw badRequest("Cannot create a session from an inactive weekly schedule");
+            if (input.sessionDate().isBefore(template.effectiveFrom)
+                    || (template.effectiveTo != null && input.sessionDate().isAfter(template.effectiveTo)))
+                throw badRequest("Session date is outside the weekly schedule effective period");
+        }
+
+        ClassSession x = new ClassSession();
+        x.weeklySchedule = template;
+        x.classroomSubject = cs;
+        x.sessionNo = input.sessionNo();
+        x.sessionDate = input.sessionDate();
+        x.startMinute = input.startMinute();
+        x.endMinute = input.endMinute();
+        x.room = input.room();
+        x.status = "SCHEDULED";
+        x.note = input.note();
+        return sessionView(sessions.save(x));
+    }
+
+    public List<SessionView> adminSessions(LocalDate from, LocalDate to) {
+        validateDateRange(from, to);
+        return sessions.findBySessionDateBetweenOrderBySessionDateAscStartMinuteAsc(from, to)
+                .stream().map(this::sessionView).toList();
+    }
+
+    public List<SessionView> teacherSessions(String username, LocalDate from, LocalDate to) {
+        validateDateRange(from, to);
+        Long id = teacherId(username);
+        return sessions.findByClassroomSubject_Teacher_IdAndSessionDateBetweenOrderBySessionDateAscStartMinuteAsc(
+                id, from, to).stream().map(this::sessionView).toList();
+    }
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null || to.isBefore(from) || to.isAfter(from.plusMonths(6)))
+            throw badRequest("Provide a valid date range of at most six months");
+    }
+
+    private ClassSession teacherSession(Long sessionId, Long teacher) {
+        ClassSession session = sessions.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        if (!session.classroomSubject.teacher.id.equals(teacher))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
+        return session;
+    }
+
+    public List<EnrolledStudentView> sessionStudents(String username, Long sessionId) {
+        Long teacher = teacherId(username);
+        ClassSession session = teacherSession(sessionId, teacher);
+        return studentSubjects.findByClassroomSubject_IdOrderByStudent_FullNameAsc(
+                session.classroomSubject.id).stream().map(enrollment -> {
+                    var attendance = attendances.findBySession_IdAndStudentSubject_Id(
+                            session.id, enrollment.id).orElse(null);
+                    return new EnrolledStudentView(enrollment.id, enrollment.student.id,
+                            enrollment.student.code, enrollment.student.fullName,
+                            attendance == null ? null : attendance.status,
+                            attendance == null ? null : attendance.note);
+                }).toList();
+    }
+
+    public List<AttendanceView> markAttendance(
+            String username, Long sessionId, List<AttendanceInput> inputs) {
+        Long teacher = teacherId(username);
+        ClassSession session = teacherSession(sessionId, teacher);
+        if ("CANCELLED".equals(session.status))
+            throw badRequest("Cannot mark attendance for a cancelled session");
+        if (inputs == null || inputs.isEmpty())
+            throw badRequest("Attendance list cannot be empty");
+
+        for (AttendanceInput input : inputs) {
+            if (input == null || input.studentSubjectId() == null)
+                throw badRequest("studentSubjectId is required");
+            String status = input.status() == null ? "" : input.status().trim().toUpperCase();
+            if (!List.of("PRESENT", "ABSENT", "LATE").contains(status))
+                throw badRequest("status must be PRESENT, ABSENT or LATE");
+
+            StudentSubject enrollment = studentSubjects.findById(input.studentSubjectId())
+                    .orElseThrow(() -> badRequest("Invalid studentSubjectId"));
+            if (!enrollment.classroomSubject.id.equals(session.classroomSubject.id))
+                throw badRequest("Student is not enrolled in this classroom subject");
+
+            Attendance attendance = attendances
+                    .findBySession_IdAndStudentSubject_Id(session.id, enrollment.id)
+                    .orElseGet(Attendance::new);
+            attendance.session = session;
+            attendance.classroomSubject = session.classroomSubject;
+            attendance.studentSubject = enrollment;
+            attendance.markedByTeacher = session.classroomSubject.teacher;
+            attendance.status = status;
+            attendance.note = input.note();
+            attendances.save(attendance);
+        }
+        return attendanceList(session.id);
+    }
+
+    public List<AttendanceView> attendanceListForTeacher(String username, Long sessionId) {
+        Long teacher = teacherId(username);
+        teacherSession(sessionId, teacher);
+        return attendanceList(sessionId);
+    }
+
+    private List<AttendanceView> attendanceList(Long sessionId) {
+        return attendances.findBySession_IdOrderByStudentSubject_Student_FullNameAsc(sessionId)
+                .stream().map(a -> new AttendanceView(a.id, a.session.id,
+                        a.studentSubject.id, a.studentSubject.student.id,
+                        a.studentSubject.student.code, a.studentSubject.student.fullName,
+                        a.status, a.note, a.markedAt, a.markedByTeacher.id)).toList();
+    }
+}
