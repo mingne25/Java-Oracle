@@ -22,9 +22,12 @@ type CatalogTableProps = {
     pageCount: number;
     studentPageSize: number;
     data: Item[];
+    classOptions: Item[];
+    classFilter: string;
+    setClassFilter: Dispatch<SetStateAction<string>>;
 };
 
-export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data }: CatalogTableProps) {
+export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data, classOptions, classFilter, setClassFilter }: CatalogTableProps) {
     return (
         <section className={`${panel} overflow-hidden`}>
             <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
@@ -46,6 +49,18 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                    {tab === "students" && user.role === "ADMIN" && (
+                        <select
+                            aria-label="Lọc sinh viên theo lớp"
+                            className="soft-input w-[190px] py-2.5 text-xs"
+                            value={classFilter}
+                            onChange={(e) => { setStudentPage(0); setClassFilter(e.target.value); }}
+                        >
+                            <option value="ALL">Tất cả lớp</option>
+                            <option value="UNASSIGNED">Chưa xếp lớp</option>
+                            {classOptions.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
+                        </select>
+                    )}
                     <div className="relative">
                         {/* <Search
             size={17}
