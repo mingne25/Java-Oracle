@@ -72,7 +72,6 @@ const tabs = [
     ["teachers", "Giảng viên"],
     ["students", "Sinh viên"],
     ["class-subjects", "Môn học theo lớp"],
-    ["student-subjects", "Đăng ký môn học"],
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
@@ -104,10 +103,6 @@ const specs: Record<string, Field[]> = {
         ["subjectId", "Môn học", "subjects"],
         ["teacherId", "Giảng viên phụ trách", "teachers"],
     ],
-    "student-subjects": [
-        ["classSubjectId", "Lớp / môn học", "class-subjects"],
-        ["studentId", "Sinh viên", "students"],
-    ],
     students: [
         ["code", "Mã sinh viên"],
         ["fullName", "Họ và tên"],
@@ -129,7 +124,6 @@ const icons: Record<string, any> = {
     subjects: BookOpen,
     "class-subjects": BookOpen,
     "teaching-classes": BookOpen,
-    "student-subjects": ClipboardList,
     accounts: ShieldCheck,
     profile: UserRound,
     schedules: CalendarDays,
@@ -204,7 +198,7 @@ export default function Page() {
         }
         setError("");
         try {
-            const keys = ["years", "faculties", "classes", "students", "teachers", "subjects", "class-subjects", "student-subjects"];
+            const keys = ["years", "faculties", "classes", "students", "teachers", "subjects", "class-subjects"];
             const required = role === "ADMIN"
                 ? keys
                 : role === "TEACHER" && current === "dashboard"
@@ -303,7 +297,7 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "schedules"]
             : user?.role === "TEACHER"
                 ? ["dashboard", "classes", "teaching-classes", "teachers", "profile", "schedules"]
                 : ["profile"];
@@ -473,7 +467,7 @@ export default function Page() {
             { label: "Khóa học", value: stats.years ?? "—", icon: CalendarDays },
         ];
     const dashboardActions = user?.role === "ADMIN"
-        ? ["students", "classes", "teachers", "subjects", "class-subjects", "student-subjects"]
+        ? ["students", "classes", "teachers", "subjects", "class-subjects"]
         : ["teaching-classes", "teachers", "profile"];
     const classDistribution = Object.entries(
         (lookup.students || []).reduce((counts: Record<string, number>, student: Item) => {
@@ -494,7 +488,6 @@ export default function Page() {
                 "years",
                 "accounts",
                 "class-subjects",
-                "student-subjects",
                 "schedules",
             ]
             : user?.role === "TEACHER"
