@@ -70,7 +70,6 @@ const tabs = [
     ["students", "Sinh viên"],
     ["class-subjects", "Môn học theo lớp"],
     ["student-subjects", "Đăng ký môn học"],
-    ["import", "Import Excel"],
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
@@ -168,6 +167,7 @@ export default function Page() {
         [listLoading, setListLoading] = useState(false),
         [listError, setListError] = useState(""),
         [studentPage, setStudentPage] = useState(0),
+        [studentClassFilter, setStudentClassFilter] = useState("ALL"),
         [lookup, setLookup] = useState<Record<string, Item[]>>({}),
         [stats, setStats] = useState<Item>({}),
         [accounts, setAccounts] = useState<Item[]>([]),
@@ -293,7 +293,7 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules", "import"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules"]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile", "schedules"]
                 : ["profile"];
@@ -399,6 +399,7 @@ export default function Page() {
     const filtered = useMemo(
         () =>
             data.filter((x) =>
+                (tab !== "students" || studentClassFilter === "ALL" || (studentClassFilter === "UNASSIGNED" ? !(x.classroom?.id ?? x.classroomId) : String(x.classroom?.id ?? x.classroomId ?? "") === studentClassFilter)) &&
                 [
                     x.code,
                     x.name,
@@ -418,7 +419,7 @@ export default function Page() {
                         .includes(query.toLocaleLowerCase("vi")),
                 ),
             ),
-        [data, query],
+        [data, query, studentClassFilter, tab],
     );
     const pageCount = Math.max(1, Math.ceil(filtered.length / STUDENT_PAGE_SIZE));
     const visibleRows = useMemo(
@@ -464,7 +465,6 @@ export default function Page() {
                 "class-subjects",
                 "student-subjects",
                 "schedules",
-                "import",
             ]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile", "schedules"]
@@ -478,8 +478,6 @@ export default function Page() {
                     ? "Hồ sơ cá nhân"
                     : tab === "schedules"
                         ? "Lịch học & điểm danh"
-                        : tab === "import"
-                            ? "Import Excel"
                             : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
     if (!user)
         return <Login onLogin={login} error={loginError} loading={loading} />;
@@ -541,7 +539,12 @@ export default function Page() {
                                 <Plus size={17} /> Thêm mới
                             </button>
                         )}
-                        {tab === "accounts" && user.role === "ADMIN" && (
+                        {tab === "students" && user.role === "ADMIN" && (
+                        <div className="mt-6">
+                            <ExcelImportPanel onImported={(text) => { setMessage(text); void load("students", user.role); }} />
+                        </div>
+                    )}
+                    {tab === "accounts" && user.role === "ADMIN" && (
                             <button
                                 onClick={() => {
                                     setAccount({ role: "STUDENT" });
@@ -622,15 +625,15 @@ export default function Page() {
                             pageCount={pageCount}
                             studentPageSize={STUDENT_PAGE_SIZE}
                             data={data}
+                            classOptions={lookup.classes || []}
+                            classFilter={studentClassFilter}
+                            setClassFilter={setStudentClassFilter}
                         />
                     )}
                     {tab === "accounts" && user.role === "ADMIN" && (
                         <AccountTable accounts={accounts} />
                     )}
                     {tab === "schedules" && <ScheduleAttendancePanel user={user} />}
-                    {tab === "import" && user.role === "ADMIN" && (
-                        <ExcelImportPanel onImported={(text) => { setMessage(text); void load("students", user.role); }} />
-                    )}
                     {tab === "profile" && (
                         <ProfilePanel profile={profile} user={user} error={error} />
                     )}
