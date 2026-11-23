@@ -1,0 +1,5 @@
+package vn.edu.qlsv.model;
+
+public enum Role {
+    ADMIN, TEACHER, STUDENT
+}
