@@ -3,6 +3,7 @@ package vn.edu.qlsv.controller;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import org.apache.poi.ss.usermodel.*;
@@ -42,6 +43,34 @@ public class StudentImportController {
         return value == null ? "" : formatter.formatCellValue(value).trim();
     }
 
+    private LocalDate parseDateOfBirth(Row row, DataFormatter formatter, List<String> errors) {
+        Cell value = row.getCell(2, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (value == null) return null;
+
+        try {
+            if (value.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(value)) {
+                return DateUtil.getLocalDateTime(value.getNumericCellValue()).toLocalDate();
+            }
+
+            String text = formatter.formatCellValue(value).trim();
+            if (text.isBlank()) return null;
+            try {
+                return LocalDate.parse(text);
+            } catch (DateTimeParseException ignored) {
+                return LocalDate.parse(text, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            }
+        } catch (DateTimeParseException | IllegalArgumentException ex) {
+            errors.add("Ngày sinh phải theo dạng YYYY-MM-DD hoặc DD/MM/YYYY, hoặc là ô ngày tháng Excel");
+            return null;
+        }
+    }
+
+    private void checkLength(String value, int max, String label, List<String> errors) {
+        if (value != null && value.length() > max) {
+            errors.add(label + " không được vượt quá " + max + " ký tự");
+        }
+    }
+
     private List<ImportRow> parse(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("Vui lòng chọn file Excel.");
         String name = file.getOriginalFilename();
@@ -52,11 +81,15 @@ public class StudentImportController {
         Set<String> seenCodes = new HashSet<>();
         Map<Long, Long> additionsByClass = new HashMap<>();
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            if (workbook.getNumberOfSheets() == 0)
+                throw new IllegalArgumentException("File Excel không có trang tính dữ liệu.");
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() < 1)
                 throw new IllegalArgumentException("File Excel chưa có dòng tiêu đề.");
             DataFormatter formatter = new DataFormatter(Locale.forLanguageTag("vi-VN"));
             Row header = sheet.getRow(0);
+            if (header == null)
+                throw new IllegalArgumentException("File Excel chưa có dòng tiêu đề.");
             for (int i = 0; i < HEADERS.size(); i++) {
                 if (!HEADERS.get(i).equalsIgnoreCase(cell(formatter, header, i)))
                     throw new IllegalArgumentException("Sai tiêu đề cột. Hãy tải file mẫu mới nhất trên website.");
@@ -67,13 +100,12 @@ public class StudentImportController {
                 if (row == null) continue;
                 String code = cell(formatter, row, 0);
                 String fullName = cell(formatter, row, 1);
-                String dobText = cell(formatter, row, 2);
                 String genderText = cell(formatter, row, 3);
                 String email = cell(formatter, row, 4);
                 String phone = cell(formatter, row, 5);
                 String statusText = cell(formatter, row, 6);
                 String classroomCode = cell(formatter, row, 7);
-                if (List.of(code, fullName, dobText, genderText, email, phone, statusText, classroomCode)
+                if (List.of(code, fullName, cell(formatter, row, 2), genderText, email, phone, statusText, classroomCode)
                         .stream().allMatch(String::isBlank)) continue;
 
                 List<String> errors = new ArrayList<>();
@@ -84,12 +116,14 @@ public class StudentImportController {
                     if (students.existsByCodeIgnoreCase(code)) errors.add("Mã sinh viên đã tồn tại");
                 }
                 if (fullName.isBlank()) errors.add("Thiếu họ và tên");
+                checkLength(code, 30, "Mã sinh viên", errors);
+                checkLength(fullName, 120, "Họ và tên", errors);
+                checkLength(email, 255, "Email", errors);
+                checkLength(phone, 20, "Số điện thoại", errors);
+                if (!email.isBlank() && !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+                    errors.add("Email không đúng định dạng");
 
-                LocalDate dob = null;
-                if (!dobText.isBlank()) {
-                    try { dob = LocalDate.parse(dobText); }
-                    catch (DateTimeParseException ex) { errors.add("Ngày sinh phải theo dạng YYYY-MM-DD"); }
-                }
+                LocalDate dob = parseDateOfBirth(row, formatter, errors);
 
                 String gender = null;
                 if (!genderText.isBlank()) {
@@ -190,15 +224,33 @@ public class StudentImportController {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("SinhVien");
             Row header = sheet.createRow(0);
-            String[] titles = {"code", "fullName", "dateOfBirth", "gender", "email", "phone", "status", "classroomCode"};
-            for (int i = 0; i < titles.length; i++) {
-                header.createCell(i).setCellValue(titles[i]);
+            for (int i = 0; i < HEADERS.size(); i++) {
+                header.createCell(i).setCellValue(HEADERS.get(i));
                 sheet.setColumnWidth(i, i == 1 ? 8500 : 5200);
             }
-            Row example = sheet.createRow(1);
-            String[] sample = {"SV0001", "Nguyen Van A", "2005-01-15", "Nam", "sva@example.com",
-                    "0900000000", "STUDYING", "LOP001"};
-            for (int i = 0; i < sample.length; i++) example.createCell(i).setCellValue(sample[i]);
+            sheet.createFreezePane(0, 1);
+            sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, HEADERS.size() - 1));
+
+            Sheet guide = workbook.createSheet("HuongDan");
+            String[][] instructions = {
+                    {"CỘT", "HƯỚNG DẪN"},
+                    {"code", "Bắt buộc. Mã sinh viên duy nhất, tối đa 30 ký tự."},
+                    {"fullName", "Bắt buộc. Họ và tên, tối đa 120 ký tự."},
+                    {"dateOfBirth", "Không bắt buộc. Dạng YYYY-MM-DD, DD/MM/YYYY hoặc ô ngày tháng Excel."},
+                    {"gender", "Không bắt buộc. Nhập Nam, Nữ hoặc Khác."},
+                    {"email", "Không bắt buộc. Email hợp lệ, tối đa 255 ký tự."},
+                    {"phone", "Không bắt buộc. Tối đa 20 ký tự."},
+                    {"status", "Không bắt buộc. STUDYING, SUSPENDED, RESERVED, GRADUATED, DROPPED_OUT hoặc EXPELLED. Mặc định STUDYING."},
+                    {"classroomCode", "Không bắt buộc. Nhập mã lớp đã tồn tại; lớp tối đa 50 sinh viên đang học/tạm dừng/bảo lưu."},
+                    {"LƯU Ý", "Nhập dữ liệu từ dòng 2 của sheet SinhVien. Không đổi tên hoặc thứ tự các cột."}
+            };
+            for (int r = 0; r < instructions.length; r++) {
+                Row guideRow = guide.createRow(r);
+                for (int c = 0; c < instructions[r].length; c++)
+                    guideRow.createCell(c).setCellValue(instructions[r][c]);
+            }
+            guide.setColumnWidth(0, 6500);
+            guide.setColumnWidth(1, 18000);
             workbook.write(out);
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=student-import-template.xlsx")
