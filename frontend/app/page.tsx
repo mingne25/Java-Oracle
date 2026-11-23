@@ -1,6 +1,7 @@
 "use client";
 
 import { Login } from "./components/auth/Login";
+import { ExcelImportPanel } from "./components/import/ExcelImportPanel";
 import { ScheduleAttendancePanel } from "./components/schedule/ScheduleAttendancePanel";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -55,6 +56,7 @@ import {
     Building2,
     CheckCircle2,
     AlertCircle,
+    FileSpreadsheet,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -68,6 +70,7 @@ const tabs = [
     ["students", "Sinh viên"],
     ["class-subjects", "Môn học theo lớp"],
     ["student-subjects", "Đăng ký môn học"],
+    ["import", "Import Excel"],
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
@@ -127,6 +130,7 @@ const icons: Record<string, any> = {
     accounts: ShieldCheck,
     profile: UserRound,
     schedules: CalendarDays,
+    import: FileSpreadsheet,
 };
 const auth = () =>
     typeof window === "undefined"
@@ -289,7 +293,7 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules", "import"]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile", "schedules"]
                 : ["profile"];
@@ -460,6 +464,7 @@ export default function Page() {
                 "class-subjects",
                 "student-subjects",
                 "schedules",
+                "import",
             ]
             : user?.role === "TEACHER"
                 ? ["dashboard", "students", "teachers", "profile", "schedules"]
@@ -473,7 +478,9 @@ export default function Page() {
                     ? "Hồ sơ cá nhân"
                     : tab === "schedules"
                         ? "Lịch học & điểm danh"
-                        : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
+                        : tab === "import"
+                            ? "Import Excel"
+                            : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
     if (!user)
         return <Login onLogin={login} error={loginError} loading={loading} />;
     return (
@@ -621,6 +628,9 @@ export default function Page() {
                         <AccountTable accounts={accounts} />
                     )}
                     {tab === "schedules" && <ScheduleAttendancePanel user={user} />}
+                    {tab === "import" && user.role === "ADMIN" && (
+                        <ExcelImportPanel onImported={(text) => { setMessage(text); void load("students", user.role); }} />
+                    )}
                     {tab === "profile" && (
                         <ProfilePanel profile={profile} user={user} error={error} />
                     )}
