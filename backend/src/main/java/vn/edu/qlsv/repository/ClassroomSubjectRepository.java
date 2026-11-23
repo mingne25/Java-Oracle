@@ -9,4 +9,5 @@ public interface ClassroomSubjectRepository extends JpaRepository<ClassroomSubje
     boolean existsByClassroom_Id(Long classroomId);
     boolean existsBySubject_Id(Long subjectId);
     boolean existsByTeacher_Id(Long teacherId);
+    java.util.List<ClassroomSubject> findByTeacher_Id(Long teacherId);
 }

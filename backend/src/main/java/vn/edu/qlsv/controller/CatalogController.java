@@ -1,6 +1,8 @@
 package vn.edu.qlsv.controller;
 
 import org.springframework.web.bind.annotation.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.http.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,9 @@ public class CatalogController {
     private final UserAccountRepository users;
     private final ClassroomSubjectRepository classroomSubjects;
     private final StudentSubjectRepository studentSubjects;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public CatalogController(CourseYearRepository y, FacultyRepository f, ClassroomRepository c, SubjectRepository s,
             TeacherRepository t, StudentRepository st, UserAccountRepository u,
@@ -55,6 +60,12 @@ public class CatalogController {
     record StudentSummary(Long id, String code, String fullName, String classroomName, StudentStatus status) {
     }
 
+    record ClassroomStudentsResponse(ClassroomSummary classroom, List<StudentSummary> students, long currentCount) {
+    }
+
+    record TeachingClassStudentsResponse(ClassroomSubjectSummary offering, List<StudentSummary> students, long currentCount) {
+    }
+
     record FacultySummary(Long id, String name) {
     }
 
@@ -76,6 +87,13 @@ public class CatalogController {
     record StudentSubjectSummary(Long id, Long studentId, StudentSummary student,
             Long classSubjectId, ClassroomSubjectSummary classSubject,
             String code, String name, String classroomName, String teacherName) {
+    }
+
+    private String generateCode(String sequenceName, String prefix) {
+        Number number = (Number) entityManager
+                .createNativeQuery("SELECT " + sequenceName + ".NEXTVAL FROM DUAL")
+                .getSingleResult();
+        return prefix + String.format("%03d", number.longValue());
     }
 
     private boolean isAdmin(Authentication auth) {
@@ -151,6 +169,27 @@ public class CatalogController {
                 enrollment.classroomSubject.teacher.fullName);
     }
 
+    @GetMapping("/teaching-classes")
+    public List<ClassroomSubjectSummary> teachingClasses(Authentication auth) {
+        List<ClassroomSubject> offerings = isTeacher(auth)
+                ? classroomSubjects.findByTeacher_Id(teacherId(auth))
+                : classroomSubjects.findAll();
+        return offerings.stream().map(this::classroomSubjectSummary).toList();
+    }
+
+    @GetMapping("/teaching-classes/{id}/students")
+    public TeachingClassStudentsResponse studentsInTeachingClass(@PathVariable Long id, Authentication auth) {
+        ClassroomSubject offering = classroomSubjects.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (isTeacher(auth) && !offering.teacher.id.equals(teacherId(auth)))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        List<Student> classStudents = students.findByClassroom_Id(offering.classroom.id);
+        long currentCount = students.countByClassroom_IdAndStatusIn(offering.classroom.id,
+                List.of(StudentStatus.STUDYING, StudentStatus.SUSPENDED, StudentStatus.RESERVED));
+        return new TeachingClassStudentsResponse(classroomSubjectSummary(offering),
+                classStudents.stream().map(this::summary).toList(), currentCount);
+    }
+
     @GetMapping("/{type}")
     public Object list(@PathVariable String type, Authentication auth) {
         if (type.equals("class-subjects"))
@@ -170,6 +209,22 @@ public class CatalogController {
         if (type.equals("teachers") && isTeacher(auth))
             return teachers.findByFaculty_Id(teacherFaculty(auth));
         return repository(type).findAll();
+    }
+
+    @GetMapping("/classes/{id}/students")
+    public ClassroomStudentsResponse studentsInClass(@PathVariable Long id, Authentication auth) {
+        Classroom classroom = classes.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (isTeacher(auth)) {
+            Long currentTeacherId = teacherId(auth);
+            if (classroom.teacher == null || !classroom.teacher.id.equals(currentTeacherId))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        List<Student> classStudents = students.findByClassroom_Id(id);
+        long currentCount = students.countByClassroom_IdAndStatusIn(id,
+                List.of(StudentStatus.STUDYING, StudentStatus.SUSPENDED, StudentStatus.RESERVED));
+        return new ClassroomStudentsResponse(classSummary(classroom),
+                classStudents.stream().map(this::summary).toList(), currentCount);
     }
 
     @GetMapping("/{type}/{id}")
@@ -309,27 +364,27 @@ public class CatalogController {
         switch (type) {
             case "years": {
                 CourseYear x = id == null ? new CourseYear() : required(years.findById(id));
-                x.code = str(d, "code");
+                if (id == null)
+                    x.code = generateCode("SEQ_COURSE_CODE", "KH");
                 x.name = str(d, "name");
-                nonblank(x.code, "code");
                 nonblank(x.name, "name");
                 x.startYear = integer(d, "startYear");
                 return years.save(x);
             }
             case "faculties": {
                 Faculty x = id == null ? new Faculty() : required(faculties.findById(id));
-                x.code = str(d, "code");
+                if (id == null)
+                    x.code = generateCode("SEQ_FACULTY_CODE", "KHOA");
                 x.name = str(d, "name");
-                nonblank(x.code, "code");
                 nonblank(x.name, "name");
                 x.courseYear = required(years.findById(requiredNumber(d, "courseYearId")));
                 return faculties.save(x);
             }
             case "classes": {
                 Classroom x = id == null ? new Classroom() : required(classes.findById(id));
-                x.code = str(d, "code");
+                if (id == null)
+                    x.code = generateCode("SEQ_CLASSROOM_CODE", "LOP");
                 x.name = str(d, "name");
-                nonblank(x.code, "code");
                 nonblank(x.name, "name");
                 Faculty faculty = required(faculties.findById(requiredNumber(d, "facultyId")));
                 if (id != null && x.faculty != null && !x.faculty.id.equals(faculty.id)

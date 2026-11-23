@@ -1,6 +1,9 @@
 "use client";
 
 import { Login } from "./components/auth/Login";
+import { ExcelImportPanel } from "./components/import/ExcelImportPanel";
+import { ScheduleAttendancePanel } from "./components/schedule/ScheduleAttendancePanel";
+import { TeachingClassesPanel } from "./components/teaching/TeachingClassesPanel";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
@@ -22,7 +25,6 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
-    ClipboardList,
     Database,
     Edit3,
     GraduationCap,
@@ -54,6 +56,8 @@ import {
     Building2,
     CheckCircle2,
     AlertCircle,
+    FileSpreadsheet,
+
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -62,25 +66,22 @@ const tabs = [
     ["years", "Khóa học"],
     ["faculties", "Khoa"],
     ["classes", "Lớp học"],
+    ["teaching-classes", "Lớp giảng dạy"],
     ["subjects", "Môn học"],
     ["teachers", "Giảng viên"],
     ["students", "Sinh viên"],
     ["class-subjects", "Môn học theo lớp"],
-    ["student-subjects", "Đăng ký môn học"],
 ] as const;
 const specs: Record<string, Field[]> = {
     years: [
-        ["code", "Mã khóa"],
         ["name", "Tên khóa"],
         ["startYear", "Năm bắt đầu", "number"],
     ],
     faculties: [
-        ["code", "Mã khoa"],
         ["name", "Tên khoa"],
         ["courseYearId", "Khóa học", "years"],
     ],
     classes: [
-        ["code", "Mã lớp"],
         ["name", "Tên lớp"],
         ["facultyId", "Khoa", "faculties"],
         ["teacherId", "Giảng viên phụ trách", "teachers"],
@@ -100,10 +101,6 @@ const specs: Record<string, Field[]> = {
         ["classroomId", "Lớp học", "classes"],
         ["subjectId", "Môn học", "subjects"],
         ["teacherId", "Giảng viên phụ trách", "teachers"],
-    ],
-    "student-subjects": [
-        ["classSubjectId", "Lớp / môn học", "class-subjects"],
-        ["studentId", "Sinh viên", "students"],
     ],
     students: [
         ["code", "Mã sinh viên"],
@@ -125,9 +122,11 @@ const icons: Record<string, any> = {
     years: CalendarDays,
     subjects: BookOpen,
     "class-subjects": BookOpen,
-    "student-subjects": ClipboardList,
+    "teaching-classes": BookOpen,
     accounts: ShieldCheck,
     profile: UserRound,
+    schedules: CalendarDays,
+    import: FileSpreadsheet,
 };
 const auth = () =>
     typeof window === "undefined"
@@ -157,7 +156,7 @@ async function request(path: string, init: RequestInit = {}) {
     return r.status === 204 ? null : r.json();
 }
 export default function Page() {
-    const [user, setUser] = useState<Item | null>(null),
+    const [user, setUser] = useState<(Item & { role: string }) | null>(null),
         [loading, setLoading] = useState(true),
         [loginError, setLoginError] = useState(""),
         [tab, setTab] = useState("dashboard"),
@@ -165,6 +164,11 @@ export default function Page() {
         [listLoading, setListLoading] = useState(false),
         [listError, setListError] = useState(""),
         [studentPage, setStudentPage] = useState(0),
+        [studentClassFilter, setStudentClassFilter] = useState("ALL"),
+        [selectedClass, setSelectedClass] = useState<Item | null>(null),
+        [classStudents, setClassStudents] = useState<Item[]>([]),
+        [classCurrentCount, setClassCurrentCount] = useState(0),
+        [classDetailLoading, setClassDetailLoading] = useState(false),
         [lookup, setLookup] = useState<Record<string, Item[]>>({}),
         [stats, setStats] = useState<Item>({}),
         [accounts, setAccounts] = useState<Item[]>([]),
@@ -193,7 +197,7 @@ export default function Page() {
         }
         setError("");
         try {
-            const keys = ["years", "faculties", "classes", "students", "teachers", "subjects", "class-subjects", "student-subjects"];
+            const keys = ["years", "faculties", "classes", "students", "teachers", "subjects", "class-subjects"];
             const required = role === "ADMIN"
                 ? keys
                 : role === "TEACHER" && current === "dashboard"
@@ -283,6 +287,8 @@ export default function Page() {
         setListLoading(false);
         setListError("");
         setStudentPage(0);
+        setSelectedClass(null);
+        setClassStudents([]);
         listLoadId.current += 1;
         setProfile(null);
         setError("");
@@ -290,9 +296,9 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "schedules"]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "teachers", "profile"]
+                ? ["dashboard", "classes", "teaching-classes", "teachers", "profile", "schedules"]
                 : ["profile"];
         if (!allowedTabs.includes(t)) return;
         setTab(t);
@@ -308,6 +314,27 @@ export default function Page() {
         setModal(false);
         setEditing(null);
         setForm({});
+    }
+    async function viewClassStudents(classroom: Item) {
+        setSelectedClass(classroom);
+        setClassStudents([]);
+        setClassDetailLoading(true);
+        setError("");
+        try {
+            const result = await request("/api/catalog/classes/" + classroom.id + "/students");
+            setSelectedClass(result.classroom);
+            setClassStudents(result.students || []);
+            setClassCurrentCount(result.currentCount || 0);
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setClassDetailLoading(false);
+        }
+    }
+    function closeClassStudents() {
+        setSelectedClass(null);
+        setClassStudents([]);
+        setClassCurrentCount(0);
     }
     async function save(e: React.FormEvent) {
         e.preventDefault();
@@ -396,6 +423,7 @@ export default function Page() {
     const filtered = useMemo(
         () =>
             data.filter((x) =>
+                (tab !== "students" || studentClassFilter === "ALL" || (studentClassFilter === "UNASSIGNED" ? !(x.classroom?.id ?? x.classroomId) : String(x.classroom?.id ?? x.classroomId ?? "") === studentClassFilter)) &&
                 [
                     x.code,
                     x.name,
@@ -415,7 +443,7 @@ export default function Page() {
                         .includes(query.toLocaleLowerCase("vi")),
                 ),
             ),
-        [data, query],
+        [data, query, studentClassFilter, tab],
     );
     const pageCount = Math.max(1, Math.ceil(filtered.length / STUDENT_PAGE_SIZE));
     const visibleRows = useMemo(
@@ -438,8 +466,8 @@ export default function Page() {
             { label: "Khóa học", value: stats.years ?? "—", icon: CalendarDays },
         ];
     const dashboardActions = user?.role === "ADMIN"
-        ? ["students", "classes", "teachers", "subjects", "class-subjects", "student-subjects"]
-        : ["students", "teachers", "profile"];
+        ? ["students", "classes", "teachers", "subjects", "class-subjects"]
+        : ["teaching-classes", "teachers", "profile"];
     const classDistribution = Object.entries(
         (lookup.students || []).reduce((counts: Record<string, number>, student: Item) => {
             const className = student.classroom?.name || student.classroomName || "Chưa xếp lớp";
@@ -459,19 +487,21 @@ export default function Page() {
                 "years",
                 "accounts",
                 "class-subjects",
-                "student-subjects",
+                "schedules",
             ]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "teachers", "profile"]
+                ? ["dashboard", "classes", "teaching-classes", "teachers", "profile", "schedules"]
                 : ["profile"];
     const title =
         tab === "dashboard"
             ? "Tổng quan"
             : tab === "accounts"
                 ? "Quản lý tài khoản"
-                : tab === "profile"
+                 : tab === "profile"
                     ? "Hồ sơ cá nhân"
-                    : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
+                    : tab === "schedules"
+                        ? "Lịch học & điểm danh"
+                            : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
     if (!user)
         return <Login onLogin={login} error={loginError} loading={loading} />;
     return (
@@ -532,7 +562,12 @@ export default function Page() {
                                 <Plus size={17} /> Thêm mới
                             </button>
                         )}
-                        {tab === "accounts" && user.role === "ADMIN" && (
+                        {tab === "students" && user.role === "ADMIN" && (
+                        <div className="mt-6">
+                            <ExcelImportPanel onImported={(text) => { setMessage(text); void load("students", user.role); }} />
+                        </div>
+                    )}
+                    {tab === "accounts" && user.role === "ADMIN" && (
                             <button
                                 onClick={() => {
                                     setAccount({ role: "STUDENT" });
@@ -578,6 +613,7 @@ export default function Page() {
                             </button>
                         </div>
                     )}
+                    {tab === "teaching-classes" && <TeachingClassesPanel />}
                     {tab === "dashboard" && (
                         <DashboardPanel
                             user={user}
@@ -593,6 +629,38 @@ export default function Page() {
                             setTab={setTab}
                             setModal={setModal}
                         />
+                    )}
+                    {tab === "classes" && selectedClass && (
+                        <section className="mb-6 rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm">
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Danh sách sinh viên theo lớp</p>
+                                    <h2 className="mt-1 text-xl font-bold text-[#18352b]">{selectedClass.name} · {selectedClass.code}</h2>
+                                    <p className="mt-1 text-sm text-slate-500">Khoa: {selectedClass.faculty?.name || "—"} · Giảng viên: {selectedClass.teacher?.fullName || "Chưa phân công"}</p>
+                                    <p className="mt-1 text-sm font-medium text-slate-600">Sĩ số: {classCurrentCount}/{selectedClass.maxStudents || 50}</p>
+                                </div>
+                                <button onClick={closeClassStudents} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Đóng danh sách</button>
+                            </div>
+                            {classDetailLoading ? (
+                                <p className="py-8 text-center text-sm text-slate-500">Đang tải danh sách sinh viên...</p>
+                            ) : (
+                                <div className="mt-4 overflow-x-auto rounded-xl border border-slate-100">
+                                    <table className="w-full min-w-[600px] text-left text-sm">
+                                        <thead className="bg-emerald-50 text-xs uppercase text-slate-600"><tr><th className="p-3">Mã sinh viên</th><th className="p-3">Họ và tên</th><th className="p-3">Trạng thái</th></tr></thead>
+                                        <tbody>
+                                            {classStudents.map((student) => (
+                                                <tr key={student.id} className="border-t border-slate-100">
+                                                    <td className="p-3 font-mono text-emerald-700">{student.code}</td>
+                                                    <td className="p-3 font-medium text-slate-800">{student.fullName}</td>
+                                                    <td className="p-3 text-slate-600">{student.status || "—"}</td>
+                                                </tr>
+                                            ))}
+                                            {classStudents.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-slate-500">Lớp chưa có sinh viên.</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
                     )}
                     {specs[tab] && (
                         <CatalogTable
@@ -613,11 +681,16 @@ export default function Page() {
                             pageCount={pageCount}
                             studentPageSize={STUDENT_PAGE_SIZE}
                             data={data}
+                            onViewStudents={viewClassStudents}
+                            classOptions={lookup.classes || []}
+                            classFilter={studentClassFilter}
+                            setClassFilter={setStudentClassFilter}
                         />
                     )}
                     {tab === "accounts" && user.role === "ADMIN" && (
                         <AccountTable accounts={accounts} />
                     )}
+                    {tab === "schedules" && <ScheduleAttendancePanel user={user} />}
                     {tab === "profile" && (
                         <ProfilePanel profile={profile} user={user} error={error} />
                     )}

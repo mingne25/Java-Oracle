@@ -12,11 +12,18 @@
 html {
   scroll-behavior: smooth;
 }
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Segoe UI", Arial, sans-serif;
+}
 body {
   margin: 0;
   background: #f4faf6;
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
 }
 button,
 input,
