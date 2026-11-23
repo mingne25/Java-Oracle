@@ -58,7 +58,9 @@ export function Sidebar({ sidebar, setSidebar, user, tab, visibleTabs, tabs, ico
                                         ? "Tài khoản"
                                         : t === "profile"
                                             ? "Hồ sơ của tôi"
-                                            : tabs.find((x) => x[0] === t)?.[1]}
+                                            : t === "schedules"
+                                                ? "Lịch học & điểm danh"
+                                                : tabs.find((x) => x[0] === t)?.[1]}
                             </span>
                             {tab === t && (
                                 <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
