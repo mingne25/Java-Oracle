@@ -22,12 +22,13 @@ type CatalogTableProps = {
     pageCount: number;
     studentPageSize: number;
     data: Item[];
+    onViewStudents: (classroom: Item) => void;
     classOptions: Item[];
     classFilter: string;
     setClassFilter: Dispatch<SetStateAction<string>>;
 };
 
-export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data, classOptions, classFilter, setClassFilter }: CatalogTableProps) {
+export function CatalogTable({ tab, title, user, listLoading, listError, filtered, query, setQuery, onRefresh, visibleRows, edit, remove, studentPage, setStudentPage, pageCount, studentPageSize, data, onViewStudents, classOptions, classFilter, setClassFilter }: CatalogTableProps) {
     return (
         <section className={`${panel} overflow-hidden`}>
             <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
@@ -138,8 +139,18 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                                 {user.role === "ADMIN" && (
                                     <td>
                                         <div className="flex justify-end gap-2">
+                                            {tab === "classes" && (
+                                                <button
+                                                    title="Xem sinh viên trong lớp"
+                                                    aria-label={`Xem sinh viên lớp ${shortName(x)}`}
+                                                    onClick={() => onViewStudents(x)}
+                                                    className="rounded-lg border border-emerald-900/10 p-2 text-emerald-600 hover:bg-emerald-50"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            )}
                                             <button
-                                                title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"}
+                                                title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"
                                                 aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
                                                 onClick={() => edit(x)}
                                                 className={`inline-flex items-center gap-2 rounded-lg border border-emerald-900/10 ${tab === "classes" ? "px-3 py-2" : "p-2"} text-emerald-300 hover:bg-emerald-500/15`}
