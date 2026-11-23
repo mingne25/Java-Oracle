@@ -81,7 +81,7 @@ public class StudentImportController {
                 else {
                     String key = code.toUpperCase(Locale.ROOT);
                     if (!seenCodes.add(key)) errors.add("Mã sinh viên bị lặp trong file");
-                    if (students.existsByCode(code)) errors.add("Mã sinh viên đã tồn tại");
+                    if (students.existsByCodeIgnoreCase(code)) errors.add("Mã sinh viên đã tồn tại");
                 }
                 if (fullName.isBlank()) errors.add("Thiếu họ và tên");
 
@@ -116,10 +116,11 @@ public class StudentImportController {
                         long already = students.countByClassroom_IdAndStatusIn(classroom.id, OCCUPYING);
                         long pending = additionsByClass.getOrDefault(classroom.id, 0L);
                         if (already + pending >= classroom.maxStudents) errors.add("Lớp đã đủ sĩ số tối đa");
-                        else additionsByClass.put(classroom.id, pending + 1);
                     }
                 }
 
+                if (errors.isEmpty() && classroom != null && OCCUPYING.contains(status))
+                    additionsByClass.merge(classroom.id, 1L, Long::sum);
                 result.add(new ImportRow(i + 1, code, fullName, dob, gender,
                         email.isBlank() ? null : email, phone.isBlank() ? null : phone,
                         status, classroom, errors));
@@ -147,15 +148,22 @@ public class StudentImportController {
         return Map.of("total", rows.size(), "valid", valid, "invalid", rows.size() - valid, "rows", details);
     }
 
+    private List<ImportRow> checkedParse(MultipartFile file) throws IOException {
+        try { return parse(file); }
+        catch (IllegalArgumentException ex) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
     @PostMapping(value = "/students/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> preview(@RequestParam("file") MultipartFile file) throws IOException {
-        return report(parse(file));
+        return report(checkedParse(file));
     }
 
     @PostMapping(value = "/students/confirm", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
     public Map<String, Object> confirm(@RequestParam("file") MultipartFile file) throws IOException {
-        List<ImportRow> rows = parse(file);
+        List<ImportRow> rows = checkedParse(file);
         Map<String, Object> report = report(rows);
         if (((Number) report.get("invalid")).longValue() > 0)
             throw new org.springframework.web.server.ResponseStatusException(
