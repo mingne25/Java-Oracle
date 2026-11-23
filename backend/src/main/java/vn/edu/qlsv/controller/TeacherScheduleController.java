@@ -31,7 +31,7 @@ public class TeacherScheduleController {
     }
 
     @GetMapping("/sessions/{sessionId}/students")
-    public List<ScheduleAttendanceService.EnrolledStudentView> students(
+    public List<ScheduleAttendanceService.SessionStudentView> students(
             Authentication authentication, @PathVariable Long sessionId) {
         return service.sessionStudents(authentication.getName(), sessionId);
     }

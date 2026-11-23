@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "ATTENDANCE", uniqueConstraints = {
         @UniqueConstraint(name = "UQ_ATT_SESSION_STUDENT",
-                columnNames = { "SESSION_ID", "STUDENT_SUBJECT_ID" })
+                columnNames = { "SESSION_ID", "STUDENT_ID" })
 })
 public class Attendance {
 
@@ -23,8 +23,12 @@ public class Attendance {
     public ClassroomSubject classroomSubject;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "STUDENT_SUBJECT_ID", nullable = false)
-    public StudentSubject studentSubject;
+    @JoinColumn(name = "STUDENT_ID", nullable = false)
+    public Student student;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "CLASSROOM_ID", nullable = false)
+    public Classroom classroom;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "MARKED_BY_TEACHER_ID", nullable = false)

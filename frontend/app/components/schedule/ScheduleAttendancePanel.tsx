@@ -23,8 +23,8 @@ type Session = {
     teacherName: string; sessionNo?: number; sessionDate: string; startMinute: number;
     endMinute: number; room?: string; status: string; note?: string;
 };
-type EnrolledStudent = {
-    studentSubjectId: number; studentId: number; studentCode: string; studentName: string;
+type ClassStudent = {
+    studentId: number; studentCode: string; studentName: string;
     attendanceStatus?: string | null; attendanceNote?: string | null;
 };
 type Mark = { status: string; note: string };
@@ -77,7 +77,7 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
     const [offerings, setOfferings] = useState<Offering[]>([]);
     const [weekly, setWeekly] = useState<Schedule[]>([]);
     const [sessions, setSessions] = useState<Session[]>([]);
-    const [students, setStudents] = useState<EnrolledStudent[]>([]);
+    const [students, setStudents] = useState<ClassStudent[]>([]);
     const [marks, setMarks] = useState<Record<number, Mark>>({});
     const [selectedSession, setSelectedSession] = useState<number | null>(null);
     const [from, setFrom] = useState(today);
@@ -185,11 +185,11 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
         setSelectedSession(id);
         setError(""); setMessage("");
         try {
-            const rows: EnrolledStudent[] = await api(`/api/teacher/sessions/${id}/students`);
+            const rows: ClassStudent[] = await api(`/api/teacher/sessions/${id}/students`);
             setStudents(rows);
             const next: Record<number, Mark> = {};
             rows.forEach((s) => {
-                next[s.studentSubjectId] = {
+                next[s.studentId] = {
                     status: s.attendanceStatus || "",
                     note: s.attendanceNote || "",
                 };
@@ -200,7 +200,7 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
 
     async function saveAttendance() {
         if (selectedSession === null) return;
-        if (students.some((s) => !marks[s.studentSubjectId]?.status)) {
+        if (students.some((s) => !marks[s.studentId]?.status)) {
             setError("Vui lòng chọn trạng thái cho tất cả sinh viên trước khi lưu.");
             return;
         }
@@ -209,9 +209,9 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
             await api(`/api/teacher/sessions/${selectedSession}/attendance`, {
                 method: "POST",
                 body: JSON.stringify(students.map((s) => ({
-                    studentSubjectId: s.studentSubjectId,
-                    status: marks[s.studentSubjectId].status,
-                    note: marks[s.studentSubjectId].note || null,
+                    studentId: s.studentId,
+                    status: marks[s.studentId].status,
+                    note: marks[s.studentId].note || null,
                 }))),
             });
             setMessage("Đã lưu điểm danh thành công.");
@@ -311,12 +311,12 @@ export function ScheduleAttendancePanel({ user }: { user: User }) {
                         <div className="flex items-center gap-2"><ClipboardCheck className="text-emerald-600" size={20} /><h2 className="font-bold text-slate-800">Điểm danh buổi #{selectedSession}</h2></div>
                         <button onClick={() => { setSelectedSession(null); setStudents([]); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600">Đóng</button>
                     </div>
-                    {students.length === 0 ? <p className="py-4 text-sm text-slate-500">Buổi học chưa có sinh viên đăng ký môn học.</p> : (
+                    {students.length === 0 ? <p className="py-4 text-sm text-slate-500">Lớp hành chính chưa có sinh viên để điểm danh.</p> : (
                         <>
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[680px] text-left text-sm">
                                     <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">Mã sinh viên</th><th className="p-3">Họ tên</th><th className="p-3">Trạng thái</th><th className="p-3">Ghi chú</th></tr></thead>
-                                    <tbody>{students.map((s) => <tr key={s.studentSubjectId} className="border-t border-slate-100"><td className="p-3">{s.studentCode}</td><td className="p-3 font-medium">{s.studentName}</td><td className="p-3"><select className={inputClass} value={marks[s.studentSubjectId]?.status || ""} onChange={(e) => setMarks({ ...marks, [s.studentSubjectId]: { ...marks[s.studentSubjectId], status: e.target.value } })}><option value="">Chọn trạng thái</option><option value="PRESENT">Có mặt</option><option value="ABSENT">Vắng</option><option value="LATE">Đi trễ</option></select></td><td className="p-3"><input className={inputClass} placeholder="Ghi chú (nếu có)" value={marks[s.studentSubjectId]?.note || ""} onChange={(e) => setMarks({ ...marks, [s.studentSubjectId]: { ...marks[s.studentSubjectId], note: e.target.value } })} /></td></tr>)}</tbody>
+                                    <tbody>{students.map((s) => <tr key={s.studentId} className="border-t border-slate-100"><td className="p-3">{s.studentCode}</td><td className="p-3 font-medium">{s.studentName}</td><td className="p-3"><select className={inputClass} value={marks[s.studentId]?.status || ""} onChange={(e) => setMarks({ ...marks, [s.studentId]: { ...marks[s.studentId], status: e.target.value } })}><option value="">Chọn trạng thái</option><option value="PRESENT">Có mặt</option><option value="ABSENT">Vắng</option><option value="LATE">Đi trễ</option></select></td><td className="p-3"><input className={inputClass} placeholder="Ghi chú (nếu có)" value={marks[s.studentId]?.note || ""} onChange={(e) => setMarks({ ...marks, [s.studentId]: { ...marks[s.studentId], note: e.target.value } })} /></td></tr>)}</tbody>
                                 </table>
                             </div>
                             <button disabled={busy} onClick={() => void saveAttendance()} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={16} /> Lưu điểm danh</button>

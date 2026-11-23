@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
-    Optional<Attendance> findBySession_IdAndStudentSubject_Id(Long sessionId, Long studentSubjectId);
-    List<Attendance> findBySession_IdOrderByStudentSubject_Student_FullNameAsc(Long sessionId);
-    List<Attendance> findByStudentSubject_Student_IdOrderBySession_SessionDateDesc(Long studentId);
+    Optional<Attendance> findBySession_IdAndStudent_Id(Long sessionId, Long studentId);
+    List<Attendance> findBySession_IdOrderByStudent_FullNameAsc(Long sessionId);
+    List<Attendance> findByStudent_IdOrderBySession_SessionDateDesc(Long studentId);
 }

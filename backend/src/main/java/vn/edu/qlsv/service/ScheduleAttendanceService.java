@@ -19,7 +19,7 @@ public class ScheduleAttendanceService {
     private final ClassSessionRepository sessions;
     private final AttendanceRepository attendances;
     private final ClassroomSubjectRepository classroomSubjects;
-    private final StudentSubjectRepository studentSubjects;
+    private final StudentRepository students;
     private final UserAccountRepository users;
 
     public ScheduleAttendanceService(
@@ -27,13 +27,13 @@ public class ScheduleAttendanceService {
             ClassSessionRepository sessions,
             AttendanceRepository attendances,
             ClassroomSubjectRepository classroomSubjects,
-            StudentSubjectRepository studentSubjects,
+            StudentRepository students,
             UserAccountRepository users) {
         this.weeklySchedules = weeklySchedules;
         this.sessions = sessions;
         this.attendances = attendances;
         this.classroomSubjects = classroomSubjects;
-        this.studentSubjects = studentSubjects;
+        this.students = students;
         this.users = users;
     }
 
@@ -58,7 +58,7 @@ public class ScheduleAttendanceService {
             String note) {
     }
 
-    public record AttendanceInput(Long studentSubjectId, String status, String note) {
+    public record AttendanceInput(Long studentId, String status, String note) {
     }
 
     public record ScheduleView(
@@ -74,13 +74,13 @@ public class ScheduleAttendanceService {
             Integer endMinute, String room, String status, String note) {
     }
 
-    public record EnrolledStudentView(
-            Long studentSubjectId, Long studentId, String studentCode,
+    public record SessionStudentView(
+            Long studentId, String studentCode,
             String studentName, String attendanceStatus, String attendanceNote) {
     }
 
     public record AttendanceView(
-            Long id, Long sessionId, Long studentSubjectId, Long studentId,
+            Long id, Long sessionId, Long studentId,
             String studentCode, String studentName, String status,
             String note, java.time.LocalDateTime markedAt, Long markedByTeacherId) {
     }
@@ -276,18 +276,17 @@ public class ScheduleAttendanceService {
         return session;
     }
 
-    public List<EnrolledStudentView> sessionStudents(String username, Long sessionId) {
+    public List<SessionStudentView> sessionStudents(String username, Long sessionId) {
         Long teacher = teacherId(username);
         ClassSession session = teacherSession(sessionId, teacher);
-        return studentSubjects.findByClassroomSubject_IdOrderByStudent_FullNameAsc(
-                session.classroomSubject.id).stream().map(enrollment -> {
-                    var attendance = attendances.findBySession_IdAndStudentSubject_Id(
-                            session.id, enrollment.id).orElse(null);
-                    return new EnrolledStudentView(enrollment.id, enrollment.student.id,
-                            enrollment.student.code, enrollment.student.fullName,
-                            attendance == null ? null : attendance.status,
-                            attendance == null ? null : attendance.note);
-                }).toList();
+        Long classroomId = session.classroomSubject.classroom.id;
+        return students.findByClassroom_IdOrderByFullNameAsc(classroomId).stream().map(student -> {
+            var attendance = attendances.findBySession_IdAndStudent_Id(
+                    session.id, student.id).orElse(null);
+            return new SessionStudentView(student.id, student.code, student.fullName,
+                    attendance == null ? null : attendance.status,
+                    attendance == null ? null : attendance.note);
+        }).toList();
     }
 
     public List<AttendanceView> markAttendance(
@@ -300,23 +299,25 @@ public class ScheduleAttendanceService {
             throw badRequest("Attendance list cannot be empty");
 
         for (AttendanceInput input : inputs) {
-            if (input == null || input.studentSubjectId() == null)
-                throw badRequest("studentSubjectId is required");
+            if (input == null || input.studentId() == null)
+                throw badRequest("studentId is required");
             String status = input.status() == null ? "" : input.status().trim().toUpperCase();
             if (!List.of("PRESENT", "ABSENT", "LATE").contains(status))
                 throw badRequest("status must be PRESENT, ABSENT or LATE");
 
-            StudentSubject enrollment = studentSubjects.findById(input.studentSubjectId())
-                    .orElseThrow(() -> badRequest("Invalid studentSubjectId"));
-            if (!enrollment.classroomSubject.id.equals(session.classroomSubject.id))
-                throw badRequest("Student is not enrolled in this classroom subject");
+            Student student = students.findById(input.studentId())
+                    .orElseThrow(() -> badRequest("Invalid studentId"));
+            Long classroomId = session.classroomSubject.classroom.id;
+            if (student.classroom == null || !student.classroom.id.equals(classroomId))
+                throw badRequest("Student does not belong to the classroom assigned to this subject");
 
             Attendance attendance = attendances
-                    .findBySession_IdAndStudentSubject_Id(session.id, enrollment.id)
+                    .findBySession_IdAndStudent_Id(session.id, student.id)
                     .orElseGet(Attendance::new);
             attendance.session = session;
             attendance.classroomSubject = session.classroomSubject;
-            attendance.studentSubject = enrollment;
+            attendance.student = student;
+            attendance.classroom = session.classroomSubject.classroom;
             attendance.markedByTeacher = session.classroomSubject.teacher;
             attendance.status = status;
             attendance.note = input.note();
@@ -332,10 +333,9 @@ public class ScheduleAttendanceService {
     }
 
     private List<AttendanceView> attendanceList(Long sessionId) {
-        return attendances.findBySession_IdOrderByStudentSubject_Student_FullNameAsc(sessionId)
+        return attendances.findBySession_IdOrderByStudent_FullNameAsc(sessionId)
                 .stream().map(a -> new AttendanceView(a.id, a.session.id,
-                        a.studentSubject.id, a.studentSubject.student.id,
-                        a.studentSubject.student.code, a.studentSubject.student.fullName,
+                        a.student.id, a.student.code, a.student.fullName,
                         a.status, a.note, a.markedAt, a.markedByTeacher.id)).toList();
     }
 }

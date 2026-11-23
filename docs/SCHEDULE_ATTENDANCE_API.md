@@ -2,7 +2,7 @@
 
 Triển khai trên nhánh `Ngamina`. Quy ước nghiệp vụ:
 - Admin tạo/cập nhật thời khóa biểu tuần và buổi học cụ thể; Admin có thể hủy buổi học.
-- Giảng viên chỉ xem lịch thuộc các phân công môn học của chính mình và điểm danh sinh viên đã đăng ký môn đó.
+- Giảng viên chỉ xem lịch thuộc các phân công môn học của chính mình và điểm danh toàn bộ sinh viên thuộc lớp hành chính được phân công môn học đó.
 - Trạng thái điểm danh: `PRESENT`, `ABSENT`, `LATE`. Không có trạng thái `EXCUSED`.
 - Thời gian lưu dưới dạng số phút tính từ 00:00. Ví dụ 07:30 = 450.
 - Thứ trong tuần: 2 = Thứ Hai, ..., 8 = Chủ nhật.
@@ -80,17 +80,17 @@ Khoảng truy vấn tối đa sáu tháng.
 ```json
 [
   {
-    "studentSubjectId": 12,
+    "studentId": 12,
     "status": "PRESENT",
     "note": null
   },
   {
-    "studentSubjectId": 13,
+    "studentId": 13,
     "status": "ABSENT",
     "note": "Vắng"
   },
   {
-    "studentSubjectId": 14,
+    "studentId": 14,
     "status": "LATE",
     "note": null
   }
@@ -107,6 +107,6 @@ Gửi lại cùng sinh viên trong cùng buổi sẽ cập nhật bản ghi đi�
 - Endpoint Admin được bảo vệ bởi `ROLE_ADMIN`; endpoint giảng viên bởi `ROLE_TEACHER`.
 - Mã giảng viên lấy từ tài khoản đăng nhập, không nhận từ request body.
 - Giảng viên không thể xem/điểm danh buổi học không thuộc phân công của mình.
-- Sinh viên phải có đăng ký môn học thuộc đúng lớp-môn của buổi học.
+- Sinh viên phải thuộc đúng lớp hành chính được phân công môn học của buổi học.
 - Không cho phép điểm danh buổi đã hủy.
-- Oracle giữ ràng buộc duy nhất một bản ghi cho mỗi cặp buổi học và đăng ký môn học.
+- Oracle giữ ràng buộc duy nhất một bản ghi cho mỗi cặp buổi học và sinh viên.
