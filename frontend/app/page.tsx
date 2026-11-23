@@ -1,6 +1,7 @@
 "use client";
 
 import { Login } from "./components/auth/Login";
+import { ScheduleAttendancePanel } from "./components/schedule/ScheduleAttendancePanel";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
@@ -287,9 +288,9 @@ export default function Page() {
     }
     function navigate(t: string) {
         const allowedTabs = user?.role === "ADMIN"
-            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects"]
+            ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules"]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "teachers", "profile"]
+                ? ["dashboard", "students", "teachers", "profile", "schedules"]
                 : ["profile"];
         if (!allowedTabs.includes(t)) return;
         setTab(t);
@@ -457,18 +458,21 @@ export default function Page() {
                 "accounts",
                 "class-subjects",
                 "student-subjects",
+                "schedules",
             ]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "teachers", "profile"]
+                ? ["dashboard", "students", "teachers", "profile", "schedules"]
                 : ["profile"];
     const title =
         tab === "dashboard"
             ? "Tổng quan"
             : tab === "accounts"
                 ? "Quản lý tài khoản"
-                : tab === "profile"
+                 : tab === "profile"
                     ? "Hồ sơ cá nhân"
-                    : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
+                    : tab === "schedules"
+                        ? "Lịch học & điểm danh"
+                        : tabs.find((x) => x[0] === tab)?.[1] || "Quản lý";
     if (!user)
         return <Login onLogin={login} error={loginError} loading={loading} />;
     return (
@@ -615,6 +619,7 @@ export default function Page() {
                     {tab === "accounts" && user.role === "ADMIN" && (
                         <AccountTable accounts={accounts} />
                     )}
+                    {tab === "schedules" && <ScheduleAttendancePanel user={user} />}
                     {tab === "profile" && (
                         <ProfilePanel profile={profile} user={user} error={error} />
                     )}
