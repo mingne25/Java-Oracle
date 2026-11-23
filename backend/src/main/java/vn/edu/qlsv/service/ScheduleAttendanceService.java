@@ -218,10 +218,6 @@ public class ScheduleAttendanceService {
         if (input.sessionDate() == null) throw badRequest("sessionDate is required");
         validateMinutes(input.startMinute(), input.endMinute());
 
-        boolean hasAttendance = !attendances.findBySession_IdOrderByStudent_FullNameAsc(id).isEmpty();
-        if (hasAttendance && !x.classroomSubject.id.equals(input.classroomSubjectId()))
-            throw badRequest("Cannot change the class/subject of a session that already has attendance records");
-
         WeeklySchedule template = null;
         if (input.weeklyScheduleId() != null) {
             template = weeklySchedules.findById(input.weeklyScheduleId())
@@ -261,6 +257,10 @@ public class ScheduleAttendanceService {
         ClassroomSubject cs = offering(input.classroomSubjectId());
         if (input.sessionDate() == null) throw badRequest("sessionDate is required");
         validateMinutes(input.startMinute(), input.endMinute());
+
+        boolean hasAttendance = !attendances.findBySession_IdOrderByStudent_FullNameAsc(id).isEmpty();
+        if (hasAttendance && !x.classroomSubject.id.equals(cs.id))
+            throw badRequest("Cannot change the class/subject of a session that already has attendance records");
 
         WeeklySchedule template = null;
         if (input.weeklyScheduleId() != null) {
