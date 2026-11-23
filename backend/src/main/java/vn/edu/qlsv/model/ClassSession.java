@@ -31,12 +31,12 @@ public class ClassSession {
     @Column(name = "END_MINUTE", nullable = false)
     public Integer endMinute;
 
-    @Column(name = "ROOM")
+    @Column(name = "ROOM", length = 100)
     public String room;
 
-    @Column(name = "STATUS", nullable = false)
+    @Column(name = "STATUS", nullable = false, length = 20)
     public String status = "SCHEDULED";
 
-    @Column(name = "NOTE")
+    @Column(name = "NOTE", length = 1000)
     public String note;
 }
