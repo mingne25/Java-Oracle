@@ -136,7 +136,7 @@ class CatalogAccessTest {
         when(faculties.findById(12L)).thenReturn(Optional.of(faculty(12L)));
         when(teachers.findById(31L)).thenReturn(Optional.of(teacher(31L, faculty(12L))));
         when(teachers.findById(32L)).thenReturn(Optional.of(teacher(32L, faculty(34L))));
-        when(classes.save(any(Classroom.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classes.saveAndFlush(any(Classroom.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .post("/api/catalog/classes")
@@ -151,7 +151,7 @@ class CatalogAccessTest {
                 .content("{\"code\":\"C2\",\"name\":\"Class 2\",\"facultyId\":12,\"teacherId\":32}"))
                 .andExpect(status().isBadRequest());
 
-        verify(classes, times(1)).save(argThat(classroom -> classroom.teacher.id.equals(31L)));
+        verify(classes, times(1)).saveAndFlush(argThat(classroom -> classroom.teacher.id.equals(31L)));
     }
 
     @Test
