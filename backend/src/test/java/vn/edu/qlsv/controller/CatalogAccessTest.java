@@ -12,9 +12,11 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Query;
 import vn.edu.qlsv.config.SecurityConfig;
 import vn.edu.qlsv.model.Classroom;
+import vn.edu.qlsv.model.ClassroomSubject;
 import vn.edu.qlsv.model.Faculty;
 import vn.edu.qlsv.model.Student;
 import vn.edu.qlsv.model.StudentStatus;
+import vn.edu.qlsv.model.Subject;
 import vn.edu.qlsv.model.Teacher;
 import vn.edu.qlsv.model.UserAccount;
 import vn.edu.qlsv.repository.*;
@@ -225,6 +227,91 @@ class CatalogAccessTest {
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(students);
+    }
+
+    @Test
+    void teacherSeesOnlyTheirTeachingClassesAndAllStudentsInThatClass() throws Exception {
+        Faculty faculty = faculty(12L);
+        Teacher assignedTeacher = teacher(7L, faculty);
+        UserAccount account = new UserAccount();
+        account.username = "teacher01";
+        account.teacher = assignedTeacher;
+        when(users.findByUsername("teacher01")).thenReturn(Optional.of(account));
+
+        Classroom classroom = new Classroom();
+        classroom.id = 107L;
+        classroom.code = "CNTT1";
+        classroom.name = "CNTT1";
+        classroom.faculty = faculty;
+        classroom.teacher = assignedTeacher;
+        classroom.maxStudents = 50;
+
+        Subject subject = new Subject();
+        subject.id = 55L;
+        subject.code = "JAVA";
+        subject.name = "Công nghệ Java";
+        subject.faculty = faculty;
+
+        ClassroomSubject offering = new ClassroomSubject();
+        offering.id = 501L;
+        offering.classroom = classroom;
+        offering.subject = subject;
+        offering.teacher = assignedTeacher;
+        when(classroomSubjects.findByTeacher_Id(7L)).thenReturn(List.of(offering));
+        when(classroomSubjects.findById(501L)).thenReturn(Optional.of(offering));
+        when(students.findByClassroom_Id(107L)).thenReturn(List.of(student(21L, 7L)));
+        when(students.countByClassroom_IdAndStatusIn(eq(107L), anyCollection())).thenReturn(1L);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/catalog/teaching-classes").with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(501))
+                .andExpect(jsonPath("$[0].classroom.name").value("CNTT1"))
+                .andExpect(jsonPath("$[0].subject.name").value("Công nghệ Java"));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/catalog/teaching-classes/501/students")
+                .with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.offering.subject.name").value("Công nghệ Java"))
+                .andExpect(jsonPath("$.students[0].id").value(21))
+                .andExpect(jsonPath("$.currentCount").value(1));
+
+        verify(classroomSubjects).findByTeacher_Id(7L);
+        verify(students).findByClassroom_Id(107L);
+    }
+
+    @Test
+    void teacherCannotOpenAnotherTeachersTeachingClass() throws Exception {
+        UserAccount account = new UserAccount();
+        account.username = "teacher01";
+        account.teacher = teacher(7L, faculty(12L));
+        when(users.findByUsername("teacher01")).thenReturn(Optional.of(account));
+
+        Classroom classroom = new Classroom();
+        classroom.id = 107L;
+        classroom.name = "CNTT1";
+        classroom.faculty = faculty(12L);
+        classroom.teacher = teacher(8L, faculty(12L));
+
+        Subject subject = new Subject();
+        subject.id = 55L;
+        subject.name = "Công nghệ Java";
+        subject.faculty = faculty(12L);
+
+        ClassroomSubject offering = new ClassroomSubject();
+        offering.id = 501L;
+        offering.classroom = classroom;
+        offering.subject = subject;
+        offering.teacher = classroom.teacher;
+        when(classroomSubjects.findById(501L)).thenReturn(Optional.of(offering));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/catalog/teaching-classes/501/students")
+                .with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isNotFound());
+
+        verify(students, never()).findByClassroom_Id(anyLong());
     }
 
     private Student student(Long id, Long assignedTeacherId) {
