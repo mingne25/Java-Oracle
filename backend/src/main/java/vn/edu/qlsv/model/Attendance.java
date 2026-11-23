@@ -30,10 +30,10 @@ public class Attendance {
     @JoinColumn(name = "MARKED_BY_TEACHER_ID", nullable = false)
     public Teacher markedByTeacher;
 
-    @Column(name = "STATUS", nullable = false)
+    @Column(name = "STATUS", nullable = false, length = 20)
     public String status;
 
-    @Column(name = "NOTE")
+    @Column(name = "NOTE", length = 500)
     public String note;
 
     @Column(name = "MARKED_AT", insertable = false, updatable = false)
