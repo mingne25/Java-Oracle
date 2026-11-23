@@ -96,7 +96,7 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                             <th>Mã định danh</th>
                             <th>{tab === "classes" ? "Giảng viên phụ trách" : "Liên kết"}</th>
                             {tab === "students" && <th>Trạng thái</th>}
-                            {user.role === "ADMIN" && (
+                            {(user.role === "ADMIN" || tab === "classes") && (
                                 <th className="text-right">Thao tác</th>
                             )}
                         </tr>
@@ -136,7 +136,7 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                                         <Status value={x.status || "STUDYING"} />
                                     </td>
                                 )}
-                                {user.role === "ADMIN" && (
+                                {(user.role === "ADMIN" || tab === "classes") && (
                                     <td>
                                         <div className="flex justify-end gap-2">
                                             {tab === "classes" && (
@@ -149,29 +149,33 @@ export function CatalogTable({ tab, title, user, listLoading, listError, filtere
                                                     <Eye size={16} />
                                                 </button>
                                             )}
-                                            <button
-                                                title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"
-                                                aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
-                                                onClick={() => edit(x)}
-                                                className={`inline-flex items-center gap-2 rounded-lg border border-emerald-900/10 ${tab === "classes" ? "px-3 py-2" : "p-2"} text-emerald-300 hover:bg-emerald-500/15`}
-                                            >
-                                                {tab === "classes" ? (
-                                                    <>
-                                                        <UserRoundPlus size={16} />
-                                                        <span>Phân công</span>
-                                                    </>
-                                                ) : (
-                                                    <Edit3 size={16} />
-                                                )}
-                                            </button>
-                                            <button
-                                                title="Xóa"
-                                                aria-label={`Xóa ${shortName(x)}`}
-                                                onClick={() => void remove(x.id)}
-                                                className="rounded-lg border border-emerald-900/10 p-2 text-rose-300 hover:bg-rose-500/15"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {user.role === "ADMIN" && (
+                                                <>
+                                                    <button
+                                                        title={tab === "classes" ? "Phân công giảng viên" : "Chỉnh sửa"}
+                                                        aria-label={tab === "classes" ? `Phân công giảng viên cho ${shortName(x)}` : `Sửa ${shortName(x)}`}
+                                                        onClick={() => edit(x)}
+                                                        className={`inline-flex items-center gap-2 rounded-lg border border-emerald-900/10 ${tab === "classes" ? "px-3 py-2" : "p-2"} text-emerald-300 hover:bg-emerald-500/15`}
+                                                    >
+                                                        {tab === "classes" ? (
+                                                            <>
+                                                                <UserRoundPlus size={16} />
+                                                                <span>Phân công</span>
+                                                            </>
+                                                        ) : (
+                                                            <Edit3 size={16} />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        title="Xóa"
+                                                        aria-label={`Xóa ${shortName(x)}`}
+                                                        onClick={() => void remove(x.id)}
+                                                        className="rounded-lg border border-emerald-900/10 p-2 text-rose-300 hover:bg-rose-500/15"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 )}
