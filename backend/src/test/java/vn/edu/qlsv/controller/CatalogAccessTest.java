@@ -1,11 +1,15 @@
 package vn.edu.qlsv.controller;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Query;
 import vn.edu.qlsv.config.SecurityConfig;
 import vn.edu.qlsv.model.Classroom;
 import vn.edu.qlsv.model.Faculty;
@@ -26,6 +30,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CatalogAccessTest {
     @Autowired
     MockMvc mvc;
+
+    @MockBean
+    EntityManagerFactory entityManagerFactory;
+    @MockBean
+    EntityManager entityManager;
+    @MockBean
+    Query sequenceQuery;
+
+    @BeforeEach
+    void configureEntityManager() {
+        when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(sequenceQuery);
+        when(sequenceQuery.getSingleResult()).thenReturn(1L);
+    }
 
     @MockBean
     CourseYearRepository years;
