@@ -190,6 +190,18 @@ class CatalogAccessTest {
                 .andExpect(status().isForbidden());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .put("/api/catalog/students/21")
+                .with(user("teacher01").roles("TEACHER"))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\\"fullName\\":\\"Changed Name\\"}"))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .delete("/api/catalog/students/21")
+                .with(user("teacher01").roles("TEACHER")))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .post("/api/admin/import/students/preview")
                 .with(user("teacher01").roles("TEACHER")))
                 .andExpect(status().isForbidden());
