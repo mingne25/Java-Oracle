@@ -59,7 +59,7 @@ public class StudentImportController {
             } catch (DateTimeParseException ignored) {
                 return LocalDate.parse(text, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             }
-        } catch (DateTimeParseException | IllegalArgumentException ex) {
+        } catch (IllegalArgumentException ex) {
             errors.add("Ngày sinh phải theo dạng YYYY-MM-DD hoặc DD/MM/YYYY, hoặc là ô ngày tháng Excel");
             return null;
         }
