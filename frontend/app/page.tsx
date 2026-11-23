@@ -3,6 +3,7 @@
 import { Login } from "./components/auth/Login";
 import { ExcelImportPanel } from "./components/import/ExcelImportPanel";
 import { ScheduleAttendancePanel } from "./components/schedule/ScheduleAttendancePanel";
+import { TeachingClassesPanel } from "./components/teaching/TeachingClassesPanel";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
@@ -66,6 +67,7 @@ const tabs = [
     ["years", "Khóa học"],
     ["faculties", "Khoa"],
     ["classes", "Lớp học"],
+    ["teaching-classes", "Lớp giảng dạy"],
     ["subjects", "Môn học"],
     ["teachers", "Giảng viên"],
     ["students", "Sinh viên"],
@@ -126,6 +128,7 @@ const icons: Record<string, any> = {
     years: CalendarDays,
     subjects: BookOpen,
     "class-subjects": BookOpen,
+    "teaching-classes": BookOpen,
     "student-subjects": ClipboardList,
     accounts: ShieldCheck,
     profile: UserRound,
@@ -302,7 +305,7 @@ export default function Page() {
         const allowedTabs = user?.role === "ADMIN"
             ? ["dashboard", "students", "teachers", "classes", "faculties", "subjects", "years", "accounts", "profile", "class-subjects", "student-subjects", "schedules"]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "classes", "teachers", "profile", "schedules"]
+                ? ["dashboard", "classes", "teaching-classes", "teachers", "profile", "schedules"]
                 : ["profile"];
         if (!allowedTabs.includes(t)) return;
         setTab(t);
@@ -471,7 +474,7 @@ export default function Page() {
         ];
     const dashboardActions = user?.role === "ADMIN"
         ? ["students", "classes", "teachers", "subjects", "class-subjects", "student-subjects"]
-        : ["students", "teachers", "profile"];
+        : ["teaching-classes", "teachers", "profile"];
     const classDistribution = Object.entries(
         (lookup.students || []).reduce((counts: Record<string, number>, student: Item) => {
             const className = student.classroom?.name || student.classroomName || "Chưa xếp lớp";
@@ -495,7 +498,7 @@ export default function Page() {
                 "schedules",
             ]
             : user?.role === "TEACHER"
-                ? ["dashboard", "students", "classes", "teachers", "profile", "schedules"]
+                ? ["dashboard", "classes", "teaching-classes", "teachers", "profile", "schedules"]
                 : ["profile"];
     const title =
         tab === "dashboard"
@@ -618,6 +621,7 @@ export default function Page() {
                             </button>
                         </div>
                     )}
+                    {tab === "teaching-classes" && <TeachingClassesPanel />}
                     {tab === "dashboard" && (
                         <DashboardPanel
                             user={user}
