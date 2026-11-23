@@ -156,7 +156,7 @@ async function request(path: string, init: RequestInit = {}) {
     return r.status === 204 ? null : r.json();
 }
 export default function Page() {
-    const [user, setUser] = useState<Item | null>(null),
+    const [user, setUser] = useState<(Item & { role: string }) | null>(null),
         [loading, setLoading] = useState(true),
         [loginError, setLoginError] = useState(""),
         [tab, setTab] = useState("dashboard"),
